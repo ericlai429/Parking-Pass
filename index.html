@@ -193,9 +193,14 @@
 
         // 預設讀取 localStorage 設定值
         window.onload = function() {
-            document.getElementById("gh-token").value = localStorage.getItem("gh_token") || "";
-            document.getElementById("gh-repo").value = localStorage.getItem("gh_repo") || "";
-            document.getElementById("gh-path").value = localStorage.getItem("gh_path") || "永青三總停車清單.xlsx";
+            const ghToken = document.getElementById("gh-token");
+            if (ghToken) ghToken.value = localStorage.getItem("gh_token") || "";
+            
+            const ghRepo = document.getElementById("gh-repo");
+            if (ghRepo) ghRepo.value = localStorage.getItem("gh_repo") || "";
+            
+            const ghPath = document.getElementById("gh-path");
+            if (ghPath) ghPath.value = localStorage.getItem("gh_path") || "永青三總停車清單.xlsx";
             
             // 強制設為入口管理員預設狀態
             logout();
@@ -209,16 +214,20 @@
                 updateSuggestions();
             }
 
-            document.getElementById("search-input").addEventListener("input", function(e) {
-                // 將輸入框內容即時轉為大寫
-                e.target.value = e.target.value.toUpperCase();
-                renderResults(e.target.value.trim());
-            });
+            const searchInput = document.getElementById("search-input");
+            if (searchInput) {
+                searchInput.addEventListener("input", function(e) {
+                    e.target.value = e.target.value.toUpperCase();
+                    renderResults(e.target.value.trim());
+                });
+            }
 
-            // 工地主任手動新增欄位也同步強制大寫
-            document.getElementById("temp-plate").addEventListener("input", function(e) {
-                e.target.value = e.target.value.toUpperCase();
-            });
+            const tempPlate = document.getElementById("temp-plate");
+            if (tempPlate) {
+                tempPlate.addEventListener("input", function(e) {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+            }
         };
 
         // 智慧提取並更新現有資料庫的「單位別」作為智慧下拉快選清單
@@ -506,7 +515,9 @@
             document.getElementById("search-section").classList.remove("hidden");
             document.getElementById("admin-section").classList.add("hidden");
             
-            renderResults(document.getElementById("search-input").value);
+            const searchInput = document.getElementById("search-input");
+            const searchVal = searchInput ? searchInput.value : "";
+            renderResults(searchVal);
         }
 
         // 新增車牌 (臨時/常駐)
