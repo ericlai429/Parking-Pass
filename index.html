@@ -197,13 +197,15 @@
             document.getElementById("gh-repo").value = localStorage.getItem("gh_repo") || "";
             document.getElementById("gh-path").value = localStorage.getItem("gh_path") || "永青三總停車清單.xlsx";
             
+            // 強制設為入口管理員預設狀態
+            logout();
+
             // 如果本地有快取資料庫，預先載入
             const cache = localStorage.getItem("parking_db");
             if (cache) {
                 mockDatabase = JSON.parse(cache);
                 githubFileSha = localStorage.getItem("gh_file_sha") || "";
                 renderAdminDatabase();
-                renderResults("");
                 updateSuggestions();
             }
 
