@@ -565,7 +565,19 @@
                 const sheet = getBestSheet(workbook);
                 const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-                githubDatabase = parseExcelJson(jsonData);
+                const parsed = parseExcelJson(jsonData);
+
+                // 防空檔覆蓋保護機制：如果從 GitHub 同步下來的資料是空的，且本地已有手動匯入的資料，我們不進行覆寫
+                if (parsed.length === 0 && githubDatabase.length > 0) {
+                    const now = new Date().toLocaleString("zh-TW");
+                    const total = getMergedDatabase().length;
+                    updateSyncStatus(`✅ ${total} 筆 (雲端空檔，保留本地)`, "text-emerald-400");
+                    cleanupLocalAdditions();
+                    renderAll();
+                    return;
+                }
+
+                githubDatabase = parsed;
 
                 localStorage.setItem("github_db", JSON.stringify(githubDatabase));
                 const now = new Date().toLocaleString("zh-TW");
