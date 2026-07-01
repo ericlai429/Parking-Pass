@@ -912,6 +912,33 @@
                 if (item["管理者2"]==="OK") ap.push("主管2");
                 if (item["管理者3"]==="OK") ap.push("主管3");
                 const apText = ap.length > 0 ? `已確認 (${ap.join(', ')})` : "待確認";
+                
+                // 計算通行證期限
+                let expiryText = "永久通過";
+                let expiryClass = "text-slate-200 font-bold";
+                
+                // 檢查是否為高階長官 (靜態清單或動態欄位關鍵字)
+                const plateNorm = normalizePlate(item["車牌"]);
+                const isStaticVip = VIP_STATIC_LIST.some(sv => normalizePlate(sv.plate) === plateNorm);
+                
+                const keywords = ["長官", "院長", "局長", "總監", "董事", "總經理", "經理", "處長", "主任"];
+                const remark = (item["備註"] || "").toUpperCase();
+                const unit = (item["單位別"] || "").toUpperCase();
+                const name = (item["姓名"] || "").toUpperCase();
+                const branch = (item["分項"] || "").toUpperCase();
+                const isDynamicVip = keywords.some(k => remark.includes(k) || unit.includes(k) || name.includes(k) || branch.includes(k));
+                
+                if (isStaticVip || isDynamicVip) {
+                    expiryText = "永久通過 (👑 貴賓車輛)";
+                    expiryClass = "text-amber-400 font-black animate-pulse";
+                } else if (item["類型"] === "temp") {
+                    expiryText = "當日有效 (臨時車輛)";
+                    expiryClass = "text-sky-400 font-bold";
+                } else if (item["類型"] === "regular") {
+                    expiryText = "永久通過";
+                    expiryClass = "text-slate-200 font-bold";
+                }
+
                 container.innerHTML += `<div class="p-4 rounded-2xl border bg-emerald-950/30 border-emerald-800/60 text-emerald-200 pass-glow shadow-md">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
@@ -921,6 +948,7 @@
                         <div><span class="text-slate-400 font-medium">單位:</span> ${item["單位別"]||'-'}</div>
                         <div><span class="text-slate-400 font-medium">姓名:</span> ${item["姓名"]||'-'}</div>
                         <div><span class="text-slate-400 font-medium">電話:</span> ${item["電話"]||'-'}</div>
+                        <div><span class="text-slate-400 font-medium">期限:</span> <span class="${expiryClass}">${expiryText}</span></div>
                         <div><span class="text-slate-400 font-medium">審核:</span> <span class="${ap.length>0?'text-indigo-400 font-bold':'text-slate-400'}">${apText}</span></div>
                     </div></div>`;
             });
