@@ -610,7 +610,7 @@
         async function syncFromGithub(silent = false) {
             try {
                 updateSyncStatus("同步中...", "text-amber-400");
-                const response = await fetch(GITHUB_RAW_URL, { cache: "no-store" });
+                const response = await fetch(`${GITHUB_RAW_URL}?t=${Date.now()}`, { cache: "no-store" });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const buffer = await response.arrayBuffer();
@@ -639,7 +639,7 @@
 
                 // 同步時順便抓取並更新該檔案在 GitHub 上的最新 ETag 與 Mtime，以此為基準
                 try {
-                    const headResp = await fetch(GITHUB_RAW_URL, { method: 'HEAD', cache: 'no-store' });
+                    const headResp = await fetch(`${GITHUB_RAW_URL}?t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
                     if (headResp.ok) {
                         const mtime = headResp.headers.get('Last-Modified');
                         const etag = headResp.headers.get('ETag');
@@ -699,7 +699,7 @@
         // ============================================================
         async function checkGitHubMtime() {
             try {
-                const response = await fetch(GITHUB_RAW_URL, { method: 'HEAD', cache: 'no-store' });
+                const response = await fetch(`${GITHUB_RAW_URL}?t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
                 if (!response.ok) return;
 
                 const currentMtime = response.headers.get('Last-Modified');
@@ -1585,7 +1585,7 @@
 
         // 下載雲端原始 Excel
         function downloadRawExcelFromGithub() {
-            window.open(GITHUB_RAW_URL, "_blank");
+            window.open(`${GITHUB_RAW_URL}?t=${Date.now()}`, "_blank");
             logAction("下載Excel", currentRole, "下載雲端原始 Excel 檔案 (從 GitHub)", "");
         }
 
