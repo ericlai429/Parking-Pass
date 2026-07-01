@@ -4,13 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>永青營造 - 停車通過檢查系統</title>
-    <!-- 引入 Google Fonts (Inter & Noto Sans TC) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <!-- 引入 SheetJS 用於處理 Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -25,14 +22,10 @@
         }
     </script>
     <style>
-        /* iPhone 13 標準直式外框限制 */
         @media (min-width: 640px) {
             .iphone-13-frame {
-                width: 390px;
-                height: 844px;
-                max-height: 844px;
-                border: 12px solid #1e293b;
-                border-radius: 48px;
+                width: 390px; height: 844px; max-height: 844px;
+                border: 12px solid #1e293b; border-radius: 48px;
                 position: relative;
                 background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
                 overflow: hidden;
@@ -41,124 +34,168 @@
         }
         @media (max-width: 639px) {
             .iphone-13-frame {
-                width: 100%;
-                height: 100vh;
-                border: none;
-                border-radius: 0;
+                width: 100%; height: 100vh; border: none; border-radius: 0;
                 background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             }
         }
-        /* 隱藏滾動條 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* 磨砂玻璃效果 */
         .glass-panel {
             background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
-        /* 脈衝綠色呼吸燈 */
         @keyframes pulse-glow {
             0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
             50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
         }
-        .pass-glow {
-            animation: pulse-glow 2s infinite ease-in-out;
-        }
-
-        /* 脈衝紅色呼吸燈 */
+        .pass-glow { animation: pulse-glow 2s infinite ease-in-out; }
         @keyframes pulse-glow-red {
             0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
             50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
         }
-        .fail-glow {
-            animation: pulse-glow-red 2s infinite ease-in-out;
+        .fail-glow { animation: pulse-glow-red 2s infinite ease-in-out; }
+        @keyframes pulse-glow-amber {
+            0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
         }
+        .pending-glow { animation: pulse-glow-amber 2s infinite ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-950 flex justify-center items-center min-h-screen font-sans text-slate-100 antialiased p-0 sm:p-4">
 
-    <!-- iPhone 13 容器 -->
     <div class="iphone-13-frame flex flex-col">
-        
-        <!-- 頂部：永青營造標頭 -->
+        <!-- 頂部標頭 -->
         <div class="bg-slate-900/90 border-b border-slate-800 text-slate-200 py-4 px-6 text-center font-bold text-base tracking-wider shadow-sm flex justify-between items-center shrink-0">
             <div class="flex items-center space-x-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></div>
                 <span class="font-extrabold text-slate-100 tracking-widest text-sm">永青營造 停車管理</span>
             </div>
             <div class="flex items-center space-x-2">
-                <span id="role-badge" class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold">入口管理</span>
+                <span id="role-badge" class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold">停車場管理員</span>
                 <button id="logout-btn" onclick="logout()" class="hidden text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-1 rounded-full font-bold">登出</button>
             </div>
         </div>
 
-        <!-- 主內容區 (可滾動) -->
+        <!-- 主內容區 -->
         <div class="flex-1 overflow-y-auto p-4 no-scrollbar flex flex-col justify-between space-y-4">
-            
             <div id="app-body" class="space-y-4">
-                <!-- 車牌查詢核心區塊 (入口管理) -->
+
+                <!-- 雲端更新通知 Banner -->
+                <div id="update-db-banner" class="hidden bg-amber-500/20 border border-amber-500/40 p-3 rounded-2xl flex items-center justify-between text-xs text-amber-200 pending-glow mb-2">
+                    <span class="font-bold flex items-center">
+                        <span class="mr-1.5 animate-bounce">🆕</span> 雲端車牌資料庫已有更新！
+                    </span>
+                    <button onclick="manualSync()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-black active:scale-95 transition-all shadow-md">
+                        🔄 更新車牌資料庫
+                    </button>
+                </div>
+
+                <!-- ====== 警衛介面 ====== -->
                 <div id="search-section" class="space-y-4">
+                    <!-- 車牌搜尋框 -->
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-slate-500 font-mono text-sm">🔍</span>
-                        </div>
                         <input type="text" id="search-input" placeholder="👉 請輸入車牌最後 3 碼或 4 碼 👈" class="w-full px-4 py-8 bg-slate-900/80 border-2 border-emerald-500/50 rounded-2xl focus:outline-none focus:border-emerald-400 font-mono text-3xl text-center font-black tracking-widest uppercase text-white placeholder-slate-600 shadow-2xl transition-all duration-200 focus:ring-4 focus:ring-emerald-500/20">
                     </div>
 
                     <!-- 比對結果動態顯示 -->
-                    <div id="result-container" class="space-y-3 min-h-[200px]">
+                    <div id="result-container" class="space-y-3 min-h-[150px]">
                         <p class="text-center text-slate-500 text-xs py-8">請輸入車牌號碼進行比對</p>
+                    </div>
+
+                    <!-- 警衛提交新車牌申請 -->
+                    <div class="bg-sky-950/40 border border-sky-900/60 p-4 rounded-2xl shadow-lg space-y-3">
+                        <h3 class="text-sm font-extrabold text-sky-300 tracking-wider flex items-center">
+                            <span class="mr-1.5">🚗</span> 提交新車牌申請
+                        </h3>
+                        <p class="text-[10px] text-sky-400/70">輸入新車牌後提交，待管理者核可即可放行</p>
+                        <div class="space-y-2.5 text-xs">
+                            <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 font-mono text-sm tracking-wider uppercase">
+                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-sm">
+                            <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-sm">
+                            <button onclick="guardSubmitPlate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all">📤 提交申請（待管理者核可）</button>
+                        </div>
+                        <div id="guard-pending-list" class="space-y-2 mt-2"></div>
                     </div>
                 </div>
 
-                <!-- 工地主任後台 -->
+                <!-- ====== 管理者後台 ====== -->
                 <div id="admin-section" class="hidden space-y-4">
-                    <!-- GitHub 連線與 Excel 載入設定 (限管理者專用) -->
+                    <!-- GitHub 自動同步 -->
                     <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
-                        <label class="block text-xs font-semibold text-slate-400 tracking-wider">🔗 GitHub 同步設定 (管理者專用)</label>
+                        <label class="block text-xs font-semibold text-slate-400 tracking-wider">🔄 GitHub 自動同步 (每 30 秒)</label>
                         <div class="space-y-2 text-xs">
-                            <input type="password" id="gh-token" placeholder="輸入 GitHub Personal Access Token (PAT)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <input type="text" id="gh-repo" placeholder="帳號/專案名稱 (例: user/parking-pass)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <input type="text" id="gh-path" placeholder="檔案路徑 (例: 永青三總停車清單.xlsx)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                            <button onclick="syncFromGithub()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold active:scale-95 transition-all">從 GitHub 載入車牌清單</button>
-                        </div>
-                    </div>
-                    <!-- 新增車牌區 -->
-                    <div class="bg-amber-950/40 border border-amber-900/60 p-4 rounded-2xl shadow-lg space-y-3">
-                        <h3 class="text-sm font-extrabold text-amber-300 tracking-wider flex items-center">
-                            <span class="mr-1.5">🎟️</span> 核發/新增車牌
-                        </h3>
-                        <div class="space-y-2.5 text-xs">
-                            <input type="text" id="temp-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 font-mono text-sm tracking-wider uppercase">
-                            <input type="text" id="temp-unit" list="unit-suggestions" placeholder="單位別 / 姓名 (支援智慧下拉快選)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 text-sm">
-                            <datalist id="unit-suggestions"></datalist>
-                            <div class="grid grid-cols-3 gap-2 pt-1">
-                                <button onclick="addNewLicense('臨時(當日)')" class="bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當日</button>
-                                <button onclick="addNewLicense('臨時(當周)')" class="bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當周</button>
-                                <button onclick="addNewLicense('常駐車輛')" class="bg-emerald-700 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">常駐</button>
+                            <div id="sync-status" class="flex items-center justify-between p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl">
+                                <span class="text-slate-500">尚未啟動同步</span>
+                            </div>
+                            <button onclick="manualSync()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all mb-1">🔄 立即同步 GitHub 資料</button>
+                            
+                            <!-- 新增 下載 Excel 資料 與 上傳 Excel 資料 按鈕 -->
+                            <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-700/40">
+                                <button onclick="downloadRawExcelFromGithub()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2 rounded-xl font-bold active:scale-95 transition-all text-[11px] flex items-center justify-center space-x-1">
+                                    <span>📥 下載 Excel 資料</span>
+                                </button>
+                                <label class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold active:scale-95 transition-all cursor-pointer text-[11px] flex items-center justify-center space-x-1">
+                                    <span>📤 上傳 Excel 資料</span>
+                                    <input type="file" id="excel-file" accept=".xlsx,.xls" class="hidden" onchange="loadExcelFile(this)">
+                                </label>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 資料庫編輯與確認管理 -->
+                    <!-- 今日待核可車牌 -->
+                    <div class="bg-amber-950/40 border border-amber-900/60 p-4 rounded-2xl shadow-lg space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-extrabold text-amber-300 tracking-wider flex items-center">
+                                <span class="mr-1.5">🔔</span> 今日待核可 (<span id="pending-count">0</span>)
+                            </h3>
+                            <button onclick="clearExpiredPending()" class="text-[10px] text-slate-500 hover:text-slate-300 transition-all">清除過期</button>
+                        </div>
+                        <div id="pending-list" class="space-y-2.5 max-h-[200px] overflow-y-auto pr-1 text-xs no-scrollbar">
+                            <p class="text-center text-amber-500/60 text-[11px] py-2">目前無待核可車牌</p>
+                        </div>
+                    </div>
+
+                    <!-- 管理者直接新增車牌 -->
+                    <div class="bg-amber-950/40 border border-amber-900/60 p-4 rounded-2xl shadow-lg space-y-3">
+                        <h3 class="text-sm font-extrabold text-amber-300 tracking-wider flex items-center">
+                            <span class="mr-1.5">🎟️</span> 管理者直接核發
+                        </h3>
+                        <div class="space-y-2.5 text-xs">
+                            <input type="text" id="temp-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 font-mono text-sm tracking-wider uppercase">
+                            <input type="text" id="temp-unit" list="unit-suggestions" placeholder="單位別 / 姓名" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 text-sm">
+                            <datalist id="unit-suggestions"></datalist>
+                            <div class="grid grid-cols-3 gap-2 pt-1">
+                                <button onclick="adminAddLicense('臨時(當日)')" class="bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當日</button>
+                                <button onclick="adminAddLicense('臨時(當周)')" class="bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當周</button>
+                                <button onclick="adminAddLicense('常駐車輛')" class="bg-emerald-700 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">常駐</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 資料庫確認後台 -->
                     <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
                         <div class="flex justify-between items-center mb-1">
-                            <h3 class="text-sm font-extrabold text-slate-300 tracking-wider">📂 資料確認後台 (<span id="db-count">0</span>)</h3>
-                            <button onclick="saveToGithub()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold transition-all">儲存並推送到 GitHub</button>
+                            <h3 class="text-sm font-extrabold text-slate-300 tracking-wider">📂 資料後台 (<span id="db-count">0</span>)</h3>
+                            <div class="flex space-x-1.5">
+                                <button onclick="openLogViewer()" class="text-xs bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg font-bold transition-all">📋 紀錄</button>
+                                <button onclick="downloadExcel()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold transition-all">📥 匯出</button>
+                            </div>
                         </div>
-                        <div id="database-list" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 text-xs no-scrollbar">
-                            <!-- 資料列表 -->
-                        </div>
+                        <div id="database-list" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 text-xs no-scrollbar"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 底部權限切換鈕 -->
-            <div class="pt-4 shrink-0">
+            <!-- 底部切換與版本區 -->
+            <div class="pt-4 shrink-0 space-y-2">
+                <div class="flex justify-between items-center text-[10px] text-slate-500 px-1 select-none">
+                    <div class="flex items-center space-x-1.5">
+                        <span id="version-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="db-version-text" class="font-mono">Ver 2026/--/--/--:--</span>
+                    </div>
+                    <span class="opacity-60">永青三總專用</span>
+                </div>
                 <button id="toggle-role-btn" onclick="toggleRole()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm py-3.5 rounded-2xl font-bold tracking-wider shadow-lg border border-slate-700 active:scale-98 transition-all duration-200">
                     切換至【管理者登入】
                 </button>
@@ -167,16 +204,18 @@
     </div>
 
     <!-- 登入 Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex justify-center items-center p-4 z-50">
+    <div id="login-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden justify-center items-center p-4 z-50">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl">
             <h3 class="text-lg font-extrabold text-white text-center">管理者權限驗證</h3>
             <div class="space-y-3">
                 <select id="login-user" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500">
+                    <option value="admin">系統管理員 (admin)</option>
                     <option value="admin1">管理者 1 (admin1)</option>
                     <option value="admin2">管理者 2 (admin2)</option>
                     <option value="admin3">管理者 3 (admin3)</option>
                 </select>
                 <input type="password" id="login-pass" placeholder="請輸入密碼 (預設: 1189)" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 text-center tracking-widest">
+                <div id="login-error" class="hidden text-center text-rose-400 text-xs font-bold p-2 bg-rose-950/40 border border-rose-900/40 rounded-xl"></div>
             </div>
             <div class="flex space-x-2 pt-2">
                 <button onclick="closeLoginModal()" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold text-sm">取消</button>
@@ -185,502 +224,1201 @@
         </div>
     </div>
 
-    <!-- 核心 JavaScript 邏輯 -->
     <script>
-        let mockDatabase = [];
-        let currentRole = "guard"; // guard, admin1, admin2, admin3
-        let githubFileSha = ""; // 儲存 GitHub 檔案的 SHA 以便更新
+        // ============================================================
+        //  全域狀態
+        // ============================================================
+        let githubDatabase = [];        // GitHub 同步的資料 (唯讀鏡像)
+        let localAdditions = [];        // 本地新增的車牌 (不被同步覆蓋)
+        let localChecks = {};           // 本地核簽變更 { "車牌": {"管理者1":"OK",...} }
+        let pendingPlates = [];         // 警衛提交的待核可車牌
+        let currentRole = "guard";
+        let syncIntervalId = null;
+        let countdownId = null;
+        let nextSyncSeconds = 30;
+        let guardSyncId = null;
+        let kickCheckId = null;         // 被踢偵測計時器
+        let checkUpdateIntervalId = null; // 檢查雲端更新計時器 ID
 
-        // 預設讀取 localStorage 設定值
+        // 本分頁唯一識別碼 (用於判斷是否被其他分頁踢出)
+        const SESSION_ID = Date.now() + "_" + Math.random().toString(36).substr(2, 8);
+        const PROTECT_MS = 10000; // 10 秒保護期
+
+        // GitHub 公開 Repo
+        const GITHUB_REPO = "ericlai429/Parking-Pass";
+        const GITHUB_BRANCH = "master";
+        const GITHUB_FILE = "永青三總停車清單.xlsx";
+        const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${encodeURIComponent(GITHUB_FILE)}`;
+
+        // ============================================================
+        //  合併資料庫 (GitHub + 本地新增 + 本地核簽)
+        //  → 解決漏洞 1, 2, 3：同步不會覆蓋本地變更
+        // ============================================================
+        function getMergedDatabase() {
+            // 1. 從 GitHub 資料套用本地核簽
+            const merged = githubDatabase.map(item => {
+                const plate = (item["車牌"] || "").toUpperCase().trim();
+                const checks = localChecks[plate];
+                if (checks) {
+                    return { ...item, ...checks };
+                }
+                return { ...item };
+            });
+
+            // 2. 加入本地新增 (排除已存在於 GitHub 的重複車牌)
+            localAdditions.forEach(item => {
+                const plate = (item["車牌"] || "").toUpperCase().trim();
+                const existsInGithub = githubDatabase.some(g =>
+                    (g["車牌"] || "").toUpperCase().trim() === plate
+                );
+                if (!existsInGithub) {
+                    merged.unshift(item); // 新增的放最前面
+                }
+            });
+
+            return merged;
+        }
+
+        // ============================================================
+        //  初始化
+        // ============================================================
         window.onload = function() {
-            const ghToken = document.getElementById("gh-token");
-            if (ghToken) ghToken.value = localStorage.getItem("gh_token") || "";
-            
-            const ghRepo = document.getElementById("gh-repo");
-            if (ghRepo) ghRepo.value = localStorage.getItem("gh_repo") || "";
-            
-            const ghPath = document.getElementById("gh-path");
-            if (ghPath) ghPath.value = localStorage.getItem("gh_path") || "永青三總停車清單.xlsx";
-            
-            // 強制設為入口管理員預設狀態
             logout();
 
-            // 如果本地有快取資料庫，預先載入
-            const cache = localStorage.getItem("parking_db");
-            if (cache) {
-                mockDatabase = JSON.parse(cache);
-                githubFileSha = localStorage.getItem("gh_file_sha") || "";
-                renderAdminDatabase();
-                updateSuggestions();
-            }
+            // 載入快取
+            const ghCache = localStorage.getItem("github_db");
+            if (ghCache) githubDatabase = JSON.parse(ghCache);
 
-            const searchInput = document.getElementById("search-input");
-            if (searchInput) {
-                searchInput.addEventListener("input", function(e) {
-                    e.target.value = e.target.value.toUpperCase();
-                    renderResults(e.target.value.trim());
-                });
-            }
+            const laCache = localStorage.getItem("local_additions");
+            if (laCache) localAdditions = JSON.parse(laCache);
 
-            const tempPlate = document.getElementById("temp-plate");
-            if (tempPlate) {
-                tempPlate.addEventListener("input", function(e) {
+            const lcCache = localStorage.getItem("local_checks");
+            if (lcCache) localChecks = JSON.parse(lcCache);
+
+            loadPendingPlates();
+            renderAll();
+
+            // 搜尋框自動大寫
+            ["search-input", "guard-plate", "temp-plate", "guard-phone"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener("input", function(e) {
                     e.target.value = e.target.value.toUpperCase();
+                    if (id === "search-input") renderResults(e.target.value.trim());
                 });
-            }
+            });
+
+            startGuardAutoSync();
+
+            // 初始化版本與燈號顯示 (優先讀取快取)
+            updateVersionUI(false);
+
+            // 每 10 秒檢查一次雲端資料庫是否有新變更
+            checkGitHubMtime();
+            checkUpdateIntervalId = setInterval(checkGitHubMtime, 10000);
         };
 
-        // 智慧提取並更新現有資料庫的「單位別」作為智慧下拉快選清單
-        function updateSuggestions() {
-            const datalist = document.getElementById("unit-suggestions");
-            if (!datalist) return;
-            
-            // 提取不重複且非空的單位別
-            const units = Array.from(new Set(
-                mockDatabase.map(item => (item["單位別"] || "").trim())
-            )).filter(unit => unit.length > 0);
+        function renderAll() {
+            renderAdminDatabase();
+            updateSuggestions();
+            renderGuardPendingList();
+            renderAdminPendingList();
+            const si = document.getElementById("search-input");
+            renderResults(si ? si.value.trim() : "");
+        }
 
-            datalist.innerHTML = "";
-            units.forEach(unit => {
-                const option = document.createElement("option");
-                option.value = unit;
-                datalist.appendChild(option);
+        // ============================================================
+        //  Admin 單一登入管理 (互踢 + 10 秒保護)
+        // ============================================================
+        function getActiveSession() {
+            const raw = localStorage.getItem("admin_session");
+            return raw ? JSON.parse(raw) : null;
+        }
+
+        function setActiveSession(user) {
+            localStorage.setItem("admin_session", JSON.stringify({
+                user: user,
+                sessionId: SESSION_ID,
+                loginTime: Date.now()
+            }));
+        }
+
+        function clearActiveSession() {
+            const session = getActiveSession();
+            // 只清除自己的 session
+            if (session && session.sessionId === SESSION_ID) {
+                localStorage.removeItem("admin_session");
+            }
+        }
+
+        // 每 2 秒檢測是否被踢出
+        function startKickCheck() {
+            stopKickCheck();
+            kickCheckId = setInterval(() => {
+                if (currentRole === "guard") return;
+                const session = getActiveSession();
+                if (!session || session.sessionId !== SESSION_ID) {
+                    // 被另一個管理者踢出
+                    const kickedBy = session ? session.user : "未知";
+                    stopKickCheck();
+                    forceLogout();
+                    alert(`⚠️ 您已被登出！\n已由另一使用者 ${kickedBy} 登入。\n請確認目前登入狀態。`);
+                }
+            }, 2000);
+        }
+
+        function stopKickCheck() {
+            if (kickCheckId) { clearInterval(kickCheckId); kickCheckId = null; }
+        }
+
+        function forceLogout() {
+            currentRole = "guard";
+            stopAutoSync();
+            stopKickCheck();
+
+            const badge = document.getElementById("role-badge");
+            if (badge) {
+                badge.innerText = "停車場管理員";
+                badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
+            }
+            const logoutBtn = document.getElementById("logout-btn");
+            if (logoutBtn) logoutBtn.classList.add("hidden");
+            const toggleBtn = document.getElementById("toggle-role-btn");
+            if (toggleBtn) toggleBtn.innerText = "切換至【管理者登入】";
+            const searchSec = document.getElementById("search-section");
+            if (searchSec) searchSec.classList.remove("hidden");
+            const adminSec = document.getElementById("admin-section");
+            if (adminSec) adminSec.classList.add("hidden");
+
+            renderGuardPendingList();
+            const si = document.getElementById("search-input");
+            renderResults(si ? si.value : "");
+        }
+
+        // ============================================================
+        //  待核可車牌管理 (localStorage)
+        // ============================================================
+        function getTodayKey() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function loadPendingPlates() {
+            const raw = localStorage.getItem("pending_plates");
+            pendingPlates = raw ? JSON.parse(raw) : [];
+            const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            pendingPlates = pendingPlates.filter(p => p.timestamp > sevenDaysAgo);
+            savePendingPlates();
+        }
+
+        function savePendingPlates() {
+            localStorage.setItem("pending_plates", JSON.stringify(pendingPlates));
+        }
+
+        function guardSubmitPlate() {
+            const plate = document.getElementById("guard-plate").value.trim().toUpperCase();
+            const unit = document.getElementById("guard-unit").value.trim();
+            const phone = document.getElementById("guard-phone").value.trim();
+            if (!plate) { alert("請輸入車牌號碼"); return; }
+
+            const norm = normalizePlate(plate);
+            const merged = getMergedDatabase();
+
+            if (merged.some(i => normalizePlate(i["車牌"]) === norm)) {
+                alert("此車牌已在核可清單中！"); return;
+            }
+            if (pendingPlates.some(p => normalizePlate(p.plate) === norm && p.status === "pending")) {
+                alert("此車牌已提交申請，等待核可中！"); return;
+            }
+
+            pendingPlates.unshift({
+                plate, unit: unit || "未填寫", phone: phone || "-", status: "pending",
+                date: getTodayKey(), timestamp: Date.now(), approvedBy: ""
+            });
+            savePendingPlates();
+            logAction("提交申請", "guard", `警衛提交新車牌申請: ${plate}，單位: ${unit || '未填寫'}，電話: ${phone || '-'}`, plate);
+            renderGuardPendingList();
+            renderAdminPendingList();
+            alert(`車牌 ${plate} 已提交！等待管理者核可...`);
+            document.getElementById("guard-plate").value = "";
+            document.getElementById("guard-unit").value = "";
+            document.getElementById("guard-phone").value = "";
+        }
+
+        function renderGuardPendingList() {
+            const c = document.getElementById("guard-pending-list");
+            if (!c) return;
+            const today = getTodayKey();
+            const items = pendingPlates.filter(p => p.date === today);
+            if (items.length === 0) { c.innerHTML = ""; return; }
+
+            c.innerHTML = `<p class="text-[10px] text-sky-400/70 font-semibold mt-1">📋 今日已提交 ${items.length} 筆：</p>`;
+            items.forEach(p => {
+                const badge = p.status === "pending"
+                    ? `<span class="text-amber-400 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">⏳ 待核可</span>`
+                    : p.status === "approved"
+                    ? `<span class="text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">✅ ${p.approvedBy}</span>`
+                    : `<span class="text-rose-400 bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 rounded-full">❌ 駁回</span>`;
+                const phStr = p.phone && p.phone !== "-" ? ` | 📞 ${p.phone}` : "";
+                c.innerHTML += `<div class="flex justify-between items-center p-2 bg-slate-900/40 border border-slate-700/40 rounded-lg text-[11px]">
+                    <span class="font-mono font-bold text-white tracking-wider">${p.plate}</span>
+                    <span class="text-slate-400">${p.unit}${phStr}</span>${badge}</div>`;
             });
         }
 
-        // 讀取 GitHub 檔案
-        async function syncFromGithub() {
-            const token = document.getElementById("gh-token").value.trim();
-            const repo = document.getElementById("gh-repo").value.trim();
-            const path = document.getElementById("gh-path").value.trim();
-
-            if (!token || !repo || !path) {
-                alert("請填寫 GitHub Token、Repo 與路徑！");
+        function renderAdminPendingList() {
+            const c = document.getElementById("pending-list");
+            const cnt = document.getElementById("pending-count");
+            if (!c) return;
+            const items = pendingPlates.filter(p => p.status === "pending");
+            if (cnt) cnt.innerText = items.length;
+            if (items.length === 0) {
+                c.innerHTML = `<p class="text-center text-amber-500/60 text-[11px] py-2">目前無待核可車牌 ✨</p>`;
                 return;
             }
+            c.innerHTML = "";
+            items.forEach(p => {
+                const ri = pendingPlates.indexOf(p);
+                const ts = new Date(p.timestamp).toLocaleString("zh-TW");
+                const phStr = p.phone && p.phone !== "-" ? ` | 📞 ${p.phone}` : "";
+                c.innerHTML += `<div class="p-3 border border-amber-700/60 rounded-xl bg-amber-950/30 space-y-2 pending-glow">
+                    <div class="flex justify-between items-center">
+                        <span class="font-mono font-extrabold text-white text-sm tracking-wider">${p.plate}</span>
+                        <span class="text-amber-500/70 text-[10px]">⏳ 待核可</span>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span>單位: ${p.unit}${phStr}</span><span>${ts}</span>
+                    </div>
+                    <div class="flex space-x-2 pt-1">
+                        <button onclick="approvePlate(${ri})" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg font-bold active:scale-95 transition-all text-xs">✅ 核可</button>
+                        <button onclick="rejectPlate(${ri})" class="flex-1 bg-rose-700 hover:bg-rose-600 text-white py-2 rounded-lg font-bold active:scale-95 transition-all text-xs">❌ 駁回</button>
+                    </div></div>`;
+            });
+        }
 
-            // 儲存設定到本地
-            localStorage.setItem("gh_token", token);
-            localStorage.setItem("gh_repo", repo);
-            localStorage.setItem("gh_path", path);
+        function approvePlate(index) {
+            if (currentRole === "guard") return;
+            const item = pendingPlates[index];
+            item.status = "approved";
+            item.approvedBy = currentRole;
 
-            const url = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}`;
-            
+            const newEntry = {
+                "單位別": item.unit, "分項": "新增登記", "車牌": item.plate,
+                "電話": item.phone || "-", "姓名": item.unit,
+                "備註": `核可放行 (${currentRole})`,
+                "管理者1": (currentRole === "admin1" || currentRole === "admin") ? "OK" : "",
+                "管理者2": currentRole === "admin2" ? "OK" : "",
+                "管理者3": currentRole === "admin3" ? "OK" : "",
+                "類型": "regular"
+            };
+            localAdditions.unshift(newEntry);
+            saveLocalAdditions();
+            savePendingPlates();
+            logAction("核可新增", currentRole, `核可車牌 ${item.plate} 放行 (單位: ${item.unit}，電話: ${item.phone || '-'})`, item.plate);
+            renderAll();
+            alert(`已核可車牌 ${item.plate} 放行！`);
+        }
+
+        function rejectPlate(index) {
+            if (currentRole === "guard") return;
+            const plate = pendingPlates[index].plate;
+            pendingPlates[index].status = "rejected";
+            pendingPlates[index].approvedBy = currentRole;
+            savePendingPlates();
+            logAction("駁回", currentRole, `駁回車牌 ${plate} 的申請`, plate);
+            renderAdminPendingList();
+            renderGuardPendingList();
+            alert(`已駁回車牌 ${plate}`);
+        }
+
+        function clearExpiredPending() {
+            const before = pendingPlates.length;
+            pendingPlates = pendingPlates.filter(p => p.status === "pending" && (Date.now() - p.timestamp < 7*24*60*60*1000));
+            const cleared = before - pendingPlates.length;
+            savePendingPlates();
+            if (cleared > 0) logAction("清除", currentRole, `清除 ${cleared} 筆過期/已處理的待核可紀錄`, "");
+            renderAdminPendingList();
+            renderGuardPendingList();
+            alert(`已清除 ${cleared} 筆`);
+        }
+
+        // ============================================================
+        //  本地資料存取 (解決漏洞 1, 2, 3)
+        // ============================================================
+        function saveLocalAdditions() {
+            localStorage.setItem("local_additions", JSON.stringify(localAdditions));
+        }
+
+        function saveLocalChecks() {
+            localStorage.setItem("local_checks", JSON.stringify(localChecks));
+        }
+
+        // ============================================================
+        //  GitHub 自動同步 (只更新 githubDatabase，不覆蓋本地)
+        // ============================================================
+        async function syncFromGithub(silent = false) {
             try {
-                const response = await fetch(url, {
-                    headers: {
-                        "Authorization": `token ${token}`,
-                        "Accept": "application/vnd.github.v3+json"
+                updateSyncStatus("同步中...", "text-amber-400");
+                const response = await fetch(GITHUB_RAW_URL, { cache: "no-store" });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const buffer = await response.arrayBuffer();
+                const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+                const sheet = getBestSheet(workbook);
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                githubDatabase = parseExcelJson(jsonData);
+
+                localStorage.setItem("github_db", JSON.stringify(githubDatabase));
+                const now = new Date().toLocaleString("zh-TW");
+                localStorage.setItem("parking_db_time", now);
+
+                // 同步時順便抓取並更新該檔案在 GitHub 上的最新 ETag 與 Mtime，以此為基準
+                try {
+                    const headResp = await fetch(GITHUB_RAW_URL, { method: 'HEAD', cache: 'no-store' });
+                    if (headResp.ok) {
+                        const mtime = headResp.headers.get('Last-Modified');
+                        const etag = headResp.headers.get('ETag');
+                        if (mtime) localStorage.setItem("github_file_mtime", mtime);
+                        if (etag) localStorage.setItem("github_file_etag", etag);
                     }
-                });
+                } catch(e) {}
+                showUpdateBanner(false); // 隱藏雲端更新通知 Banner
+                updateVersionUI(false);  // 更新版本號為最新 (綠燈)
 
-                if (!response.ok) {
-                    throw new Error("取得 GitHub 檔案失敗，請檢查權限與路徑！");
-                }
+                // 清理已被 GitHub 收錄的本地新增 (避免重複)
+                cleanupLocalAdditions();
 
-                const data = await response.json();
-                githubFileSha = data.sha;
-                localStorage.setItem("gh_file_sha", githubFileSha);
+                renderAll();
 
-                // 將 Base64 解碼為 ArrayBuffer
-                const binaryString = atob(data.content.replace(/\s/g, ''));
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-
-                const workbook = XLSX.read(bytes.buffer, {type: 'array'});
-                const sheetName = workbook.SheetNames[0]; // 預設讀取第一個分頁
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                // 標準化結構，並新增管理確認欄 (管理者1, 管理者2, 管理者3)
-                mockDatabase = jsonData.map(row => ({
-                    "單位別": row["單位別"] || "",
-                    "分項": row["分項"] || "",
-                    "車牌": row["車牌"] || "",
-                    "電話": row["電話"] || "",
-                    "姓名": row["姓名"] || "",
-                    "備註": row["備註"] || "",
-                    "管理者1": row["管理者1"] || "",
-                    "管理者2": row["管理者2"] || "",
-                    "管理者3": row["管理者3"] || "",
-                    "類型": row["類型"] || "regular"
-                }));
-
-                localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
-                alert(`成功從 GitHub 同步 ${mockDatabase.length} 筆資料！`);
-                renderAdminDatabase();
-                updateSuggestions();
-                renderResults(document.getElementById("search-input").value);
+                const total = getMergedDatabase().length;
+                updateSyncStatus(`✅ ${total} 筆 | ${now}`, "text-emerald-400");
             } catch (err) {
-                alert("錯誤: " + err.message);
+                updateSyncStatus(`❌ ${err.message}`, "text-rose-400");
+                if (!silent) console.error("同步失敗:", err);
             }
         }
 
-        // 推送回 GitHub
-        async function saveToGithub() {
-            const token = localStorage.getItem("gh_token");
-            const repo = localStorage.getItem("gh_repo");
-            const path = localStorage.getItem("gh_path");
+        // 清理已被 GitHub 收錄的本地新增
+        function cleanupLocalAdditions() {
+            const before = localAdditions.length;
+            localAdditions = localAdditions.filter(la => {
+                const plate = (la["車牌"] || "").toUpperCase().trim();
+                return !githubDatabase.some(g =>
+                    (g["車牌"] || "").toUpperCase().trim() === plate
+                );
+            });
+            if (localAdditions.length !== before) saveLocalAdditions();
+        }
 
-            if (!token || !repo || !path || !githubFileSha) {
-                alert("尚未從 GitHub 載入資料，無法推回更新！");
-                return;
-            }
+        function manualSync() {
+            syncFromGithub(false);
+            nextSyncSeconds = 30;
+        }
 
+        function startAdminAutoSync() {
+            stopAutoSync();
+            syncFromGithub(true);
+            nextSyncSeconds = 30;
+            countdownId = setInterval(() => { nextSyncSeconds--; updateSyncCountdown(); }, 1000);
+            syncIntervalId = setInterval(() => { syncFromGithub(true); nextSyncSeconds = 30; }, 30000);
+        }
+
+        function startGuardAutoSync() {
+            if (guardSyncId) clearInterval(guardSyncId);
+            syncFromGithub(true);
+            guardSyncId = setInterval(() => { if (currentRole === "guard") syncFromGithub(true); }, 30000);
+        }
+
+        // ============================================================
+        //  GitHub Mtime/ETag 輕量化檢測 (每 10 秒)
+        // ============================================================
+        async function checkGitHubMtime() {
             try {
-                // 將目前資料轉為 Excel 檔案的 ArrayBuffer
-                const cleanExportDb = mockDatabase.map(item => ({
-                    "單位別": item["單位別"],
-                    "分項": item["分項"],
-                    "車牌": item["車牌"],
-                    "電話": item["電話"],
-                    "姓名": item["姓名"],
-                    "備註": item["備註"],
-                    "管理者1": item["管理者1"],
-                    "管理者2": item["管理者2"],
-                    "管理者3": item["管理者3"],
-                    "類型": item["類型"]
-                }));
+                const response = await fetch(GITHUB_RAW_URL, { method: 'HEAD', cache: 'no-store' });
+                if (!response.ok) return;
 
-                const worksheet = XLSX.utils.json_to_sheet(cleanExportDb);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "工作表1");
-                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                const currentMtime = response.headers.get('Last-Modified');
+                const currentEtag = response.headers.get('ETag');
 
-                // 將 ArrayBuffer 轉成 Base64
-                let binary = "";
-                const bytes = new Uint8Array(excelBuffer);
-                const len = bytes.byteLength;
-                for (let i = 0; i < len; i++) {
-                    binary += String.fromCharCode(bytes[i]);
+                const savedMtime = localStorage.getItem("github_file_mtime");
+                const savedEtag = localStorage.getItem("github_file_etag");
+
+                // 如果本地還沒有任何紀錄，直接更新為基準
+                if (!savedMtime && !savedEtag) {
+                    if (currentMtime) localStorage.setItem("github_file_mtime", currentMtime);
+                    if (currentEtag) localStorage.setItem("github_file_etag", currentEtag);
+                    showUpdateBanner(false);
+                    updateVersionUI(false);
+                    return;
                 }
-                const base64Content = btoa(binary);
+                const mtimeChanged = currentMtime && savedMtime && savedMtime !== currentMtime;
+                const etagChanged = currentEtag && savedEtag && savedEtag !== currentEtag;
 
-                // 發送 PUT 請求至 GitHub API 進行覆寫更新
-                const url = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}`;
-                const response = await fetch(url, {
-                    method: "PUT",
-                    headers: {
-                        "Authorization": `token ${token}`,
-                        "Content-Type": "application/json",
-                        "Accept": "application/vnd.github.v3+json"
-                    },
-                    body: JSON.stringify({
-                        message: `Update parking database via checking app - ${new Date().toISOString()}`,
-                        content: base64Content,
-                        sha: githubFileSha
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error("推送更新至 GitHub 失敗！");
+                if (mtimeChanged || etagChanged) {
+                    showUpdateBanner(true);
+                    updateVersionUI(true); // 有新資料：黃燈
+                } else {
+                    showUpdateBanner(false);
+                    updateVersionUI(false); // 無新資料：綠燈
                 }
-
-                const resData = await response.json();
-                githubFileSha = resData.content.sha; // 更新最新的檔案 SHA
-                localStorage.setItem("gh_file_sha", githubFileSha);
-                localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
-
-                alert("成功將最新車牌與確認欄位同步至 GitHub！");
             } catch (err) {
-                alert("推送失敗: " + err.message);
+                console.warn("檢查 GitHub 更新時間失敗:", err);
             }
         }
 
-        // 車牌搜尋比對 (入口管理介面)
+        function showUpdateBanner(show) {
+            const banner = document.getElementById("update-db-banner");
+            if (!banner) return;
+            if (show) {
+                banner.classList.remove("hidden");
+                banner.classList.add("flex");
+            } else {
+                banner.classList.add("hidden");
+                banner.classList.remove("flex");
+            }
+        }
+
+        // ============================================================
+        //  車牌標準化與全形轉半形工具
+        // ============================================================
+        function toHalfWidth(str) {
+            if (!str) return "";
+            return str.replace(/[\uFF01-\uFF5E]/g, function(ch) {
+                return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+            }).replace(/\u3000/g, " ");
+        }
+
+        function normalizePlate(plate) {
+            if (!plate) return "";
+            let p = toHalfWidth(String(plate).toUpperCase().trim());
+            p = p.replace(/[－一—]/g, "-");
+            p = p.replace(/[^A-Z0-9-]/g, "");
+            return p;
+        }
+
+        // 尋找第一個含有車牌資料或資料量最多的非空工作表
+        function getBestSheet(wb) {
+            let bestSheet = wb.Sheets[wb.SheetNames[0]];
+            let maxRows = 0;
+            
+            for (let name of wb.SheetNames) {
+                const sheet = wb.Sheets[name];
+                if (!sheet || !sheet['!ref']) continue;
+                
+                const json = XLSX.utils.sheet_to_json(sheet);
+                if (json.length > 0) {
+                    const hasPlateHeader = json.some(row => Object.keys(row).some(k => k.includes("車牌") || k.includes("車號") || k.toLowerCase().includes("plate")));
+                    if (hasPlateHeader) {
+                        return sheet;
+                    }
+                    if (json.length > maxRows) {
+                        maxRows = json.length;
+                        bestSheet = sheet;
+                    }
+                }
+            }
+            return bestSheet;
+        }
+
+        // 智慧欄位名稱模糊匹配與解析
+        function parseExcelJson(json) {
+            const getValByFuzzyKeys = (row, possibleKeys) => {
+                for (let key of Object.keys(row)) {
+                    const cleanKey = key.trim().toLowerCase();
+                    if (possibleKeys.some(pk => cleanKey.includes(pk.toLowerCase()) || pk.toLowerCase().includes(cleanKey))) {
+                        return row[key];
+                    }
+                }
+                return "";
+            };
+
+            return json.map(r => {
+                const plateVal = getValByFuzzyKeys(r, ["車牌", "車號", "plate"]);
+                const unitVal = getValByFuzzyKeys(r, ["單位", "單位別", "科室", "unit"]);
+                const nameVal = getValByFuzzyKeys(r, ["姓名", "駕駛", "owner", "name"]);
+                const phoneVal = getValByFuzzyKeys(r, ["電話", "手機", "聯絡", "phone"]);
+                const noteVal = getValByFuzzyKeys(r, ["備註", "備註事項", "remark", "note"]);
+                const typeVal = getValByFuzzyKeys(r, ["類型", "車輛類型", "type"]);
+
+                return {
+                    "單位別": String(unitVal || "").trim(),
+                    "分項": String(r["分項"] || r["分項登記"] || "").trim(),
+                    "車牌": String(plateVal || "").trim().toUpperCase(),
+                    "電話": String(phoneVal || "").trim(),
+                    "姓名": String(nameVal || "").trim(),
+                    "備註": String(noteVal || "").trim(),
+                    "管理者1": String(r["管理者1"] || "").trim(),
+                    "管理者2": String(r["管理者2"] || "").trim(),
+                    "管理者3": String(r["管理者3"] || "").trim(),
+                    "類型": String(typeVal || "regular").trim()
+                };
+            }).filter(item => item["車牌"].length > 0);
+        }
+
+        // ============================================================
+        //  版本號與狀態燈更新 UI 邏輯
+        // ============================================================
+        function formatMtimeToVersion(mtimeStr) {
+            if (!mtimeStr) return "Ver 2026/--/--/--:--";
+            try {
+                const d = new Date(mtimeStr);
+                if (isNaN(d.getTime())) return "Ver 2026/--/--/--:--";
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const r = String(d.getDate()).padStart(2, '0');
+                const h = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                return `Ver ${y}/${m}/${r}/${h}-${min}`;
+            } catch(e) {
+                return "Ver 2026/--/--/--:--";
+            }
+        }
+
+        function updateVersionUI(hasNewData) {
+            const dot = document.getElementById("version-status-dot");
+            const text = document.getElementById("db-version-text");
+            if (!dot || !text) return;
+
+            const localMtime = localStorage.getItem("github_file_mtime");
+            text.innerText = formatMtimeToVersion(localMtime);
+
+            if (hasNewData) {
+                // 有新資料：黃燈亮起，呈現呼吸/閃爍狀態
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping";
+            } else {
+                // 最新版：綠燈常亮，呈現穩定的脈動/呼吸狀態
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+            }
+        }
+
+        function stopAutoSync() {
+            if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; }
+            if (countdownId) { clearInterval(countdownId); countdownId = null; }
+        }
+
+        function updateSyncStatus(text, cls) {
+            const el = document.getElementById("sync-status");
+            if (el) el.innerHTML = `<span class="${cls} font-semibold">${text}</span>`;
+        }
+
+        function updateSyncCountdown() {
+            const el = document.getElementById("sync-status");
+            if (!el) return;
+            const time = localStorage.getItem("parking_db_time") || "";
+            const count = getMergedDatabase().length;
+            const la = localAdditions.length;
+            const laText = la > 0 ? ` <span class="text-amber-400">+${la}本地</span>` : "";
+            el.innerHTML = `<span class="text-emerald-400 font-semibold">✅ ${count} 筆${laText}</span><span class="text-slate-500 text-[10px] ml-1">| ${time}</span><span class="text-sky-400 text-[10px] ml-auto">下次: ${nextSyncSeconds}s</span>`;
+        }
+
+        // ============================================================
+        //  車牌搜尋 (警衛介面)
+        // ============================================================
         function renderResults(keyword) {
             const container = document.getElementById("result-container");
             container.innerHTML = "";
+            const allData = getMergedDatabase();
 
-            if (mockDatabase.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">請先從上方載入或設定車牌資料</p>';
+            if (allData.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">請先載入車牌資料</p>';
                 return;
             }
-
             if (!keyword) {
                 container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">等待輸入車牌...</p>';
                 return;
             }
 
-            // 將輸入進行正規化：轉大寫、全形橫線「－」或「一」轉成半形「-」，最後只允許英數字與半形減號「-」
-            let normalizedKeyword = keyword.toUpperCase()
-                .replace(/[－一]/g, "-") // 將全形減號或中文一字元轉為半形 -
-                .replace(/[^A-Z0-9-]/g, ""); // 只保留英文、數字與半形減號
-
-            // 計算用來進行模糊比對的純英數字長度（扣除減號）
-            const cleanLength = normalizedKeyword.replace(/-/g, "").length;
-            
-            if (cleanLength < 3) {
-                container.innerHTML = '<p class="text-center text-amber-400 text-xs py-8 font-semibold">⚠️ 請至少輸入 3 碼(英數字)進行比對</p>';
+            let nk = normalizePlate(keyword);
+            if (nk.replace(/-/g, "").length < 3) {
+                container.innerHTML = '<p class="text-center text-amber-400 text-xs py-8 font-semibold">⚠️ 請至少輸入 3 碼</p>';
                 return;
             }
 
-            const filtered = mockDatabase.filter(item => {
-                // 資料庫車牌正規化（大寫，且只保留英數減號）
-                const cleanPlate = (item["車牌"] || "").toUpperCase()
-                    .replace(/[－一]/g, "-")
-                    .replace(/[^A-Z0-9-]/g, "");
-                
-                return cleanPlate.includes(normalizedKeyword);
+            const filtered = allData.filter(i => {
+                const cp = normalizePlate(i["車牌"]);
+                return cp.includes(nk);
             });
 
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-rose-950/40 border border-rose-900/60 text-rose-200 p-5 rounded-2xl text-center fail-glow transition-all">
-                        <p class="font-black text-xl tracking-wider text-rose-400">⚠️ 未註冊車牌</p>
-                        <p class="text-xs mt-2 text-rose-300/80">請勿放行，或聯繫工地主任核發通行證</p>
-                    </div>`;
+            const pendingMatches = pendingPlates.filter(p => {
+                if (p.status !== "pending") return false;
+                const cp = normalizePlate(p.plate);
+                return cp.includes(nk);
+            });
+
+            if (filtered.length === 0 && pendingMatches.length === 0) {
+                container.innerHTML = `<div class="bg-rose-950/40 border border-rose-900/60 text-rose-200 p-5 rounded-2xl text-center fail-glow">
+                    <p class="font-black text-xl tracking-wider text-rose-400">⚠️ 未註冊車牌</p>
+                    <p class="text-xs mt-2 text-rose-300/80">請勿放行，或由下方提交申請</p></div>`;
                 return;
             }
 
             filtered.forEach(item => {
-                const isTemp = item["類型"] !== "regular";
-                // 組合管理者確認資訊
-                const approvals = [];
-                if (item["管理者1"] === "OK") approvals.push("管理者1");
-                if (item["管理者2"] === "OK") approvals.push("管理者2");
-                if (item["管理者3"] === "OK") approvals.push("管理者3");
-                const approvalText = approvals.length > 0 ? `已確認 (${approvals.join(', ')})` : "待確認";
+                const ap = [];
+                if (item["管理者1"]==="OK") ap.push("主管1");
+                if (item["管理者2"]==="OK") ap.push("主管2");
+                if (item["管理者3"]==="OK") ap.push("主管3");
+                const apText = ap.length > 0 ? `已確認 (${ap.join(', ')})` : "待確認";
+                container.innerHTML += `<div class="p-4 rounded-2xl border bg-emerald-950/30 border-emerald-800/60 text-emerald-200 pass-glow shadow-md">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ 准予通行</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
+                        <div><span class="text-slate-500">單位:</span> ${item["單位別"]||'-'}</div>
+                        <div><span class="text-slate-500">姓名:</span> ${item["姓名"]||'-'}</div>
+                        <div><span class="text-slate-500">電話:</span> ${item["電話"]||'-'}</div>
+                        <div><span class="text-slate-500">審核:</span> <span class="${ap.length>0?'text-indigo-400 font-bold':'text-slate-500'}">${apText}</span></div>
+                    </div></div>`;
+            });
 
-                container.innerHTML += `
-                    <div class="p-4 rounded-2xl border ${isTemp ? 'bg-amber-950/30 border-amber-700/60 text-amber-200' : 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'} pass-glow shadow-md transition-all">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
-                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${isTemp ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
-                                ${isTemp ? item["備註"] : '准予通行'}
-                            </span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
-                            <div><span class="text-slate-500">單位:</span> ${item["單位別"] || '-'}</div>
-                            <div><span class="text-slate-500">姓名:</span> ${item["姓名"] || '-'}</div>
-                            <div><span class="text-slate-500">電話:</span> ${item["電話"] || '-'}</div>
-                            <div><span class="text-slate-500">審核:</span> <span class="${approvals.length > 0 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">${approvalText}</span></div>
-                        </div>
-                    </div>`;
+            pendingMatches.forEach(p => {
+                container.innerHTML += `<div class="p-4 rounded-2xl border bg-amber-950/30 border-amber-700/60 text-amber-200 pending-glow shadow-md">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${p.plate}</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⏳ 待核可</span>
+                    </div>
+                    <div class="text-xs text-amber-300/70 mt-2">
+                        <p class="text-rose-400 font-bold">⚠️ 尚未核可，請勿放行</p>
+                    </div></div>`;
             });
         }
 
-        // 開關登入 Modal
+        // ============================================================
+        //  角色切換 + 互踢機制
+        // ============================================================
         function toggleRole() {
             if (currentRole === "guard") {
-                document.getElementById("login-modal").classList.remove("hidden");
+                const modal = document.getElementById("login-modal");
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                document.getElementById("login-error").classList.add("hidden");
             } else {
                 logout();
             }
         }
 
         function closeLoginModal() {
-            document.getElementById("login-modal").classList.add("hidden");
+            const modal = document.getElementById("login-modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+            document.getElementById("login-error").classList.add("hidden");
+        }
+
+        function showLoginError(msg) {
+            const el = document.getElementById("login-error");
+            el.textContent = msg;
+            el.classList.remove("hidden");
         }
 
         function submitLogin() {
             const user = document.getElementById("login-user").value;
             const pass = document.getElementById("login-pass").value;
 
-            if (pass === "1189") {
-                currentRole = user;
-                localStorage.setItem("current_role", user);
-                
-                // 畫面 UI 更新
-                const badge = document.getElementById("role-badge");
-                badge.innerText = `主任: ${user}`;
-                badge.className = "text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold";
-                
-                document.getElementById("logout-btn").classList.remove("hidden");
-                document.getElementById("toggle-role-btn").innerText = "切換至【入口管理介面】";
-                document.getElementById("search-section").classList.add("hidden");
-                document.getElementById("admin-section").classList.remove("hidden");
-                
-                closeLoginModal();
-                renderAdminDatabase();
-            } else {
-                alert("驗證密碼錯誤！");
-            }
-            document.getElementById("login-pass").value = "";
-        }
-
-        function logout() {
-            currentRole = "guard";
-            localStorage.removeItem("current_role");
-            
-            const badge = document.getElementById("role-badge");
-            if (badge) {
-                badge.innerText = "入口管理";
-                badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
-            }
-            
-            const logoutBtn = document.getElementById("logout-btn");
-            if (logoutBtn) logoutBtn.classList.add("hidden");
-
-            const toggleBtn = document.getElementById("toggle-role-btn");
-            if (toggleBtn) toggleBtn.innerText = "切換至【管理者登入】";
-
-            const searchSec = document.getElementById("search-section");
-            if (searchSec) searchSec.classList.remove("hidden");
-
-            const adminSec = document.getElementById("admin-section");
-            if (adminSec) adminSec.classList.add("hidden");
-            
-            const searchInput = document.getElementById("search-input");
-            const searchVal = searchInput ? searchInput.value : "";
-            renderResults(searchVal);
-        }
-
-        // 新增車牌 (臨時/常駐)
-        function addNewLicense(remark) {
-            const plate = document.getElementById("temp-plate").value.trim().toUpperCase();
-            const unit = document.getElementById("temp-unit").value.trim();
-
-            if (!plate) { alert("請輸入車牌號碼"); return; }
-
-            const type = remark === '常駐車輛' ? 'regular' : 'temp';
-
-            mockDatabase.unshift({
-                "單位別": unit || "新增車輛",
-                "分項": "新增登記",
-                "車牌": plate,
-                "電話": "-",
-                "姓名": "主管登記",
-                "備註": remark,
-                "管理者1": "",
-                "管理者2": "",
-                "管理者3": "",
-                "類型": type
-            });
-
-            alert(`已成功登錄車牌 ${plate} (${remark})，請記得按上方儲存按鈕同步推送到 GitHub！`);
-            document.getElementById("temp-plate").value = "";
-            document.getElementById("temp-unit").value = "";
-            renderAdminDatabase();
-            updateSuggestions();
-        }
-
-        // 更新各欄位內容
-        function updateField(index, field, value) {
-            mockDatabase[index][field] = value;
-            localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
-        }
-
-        // 切換管理者勾選確認 (OK / "")
-        function toggleAdminCheck(index, adminCol) {
-            if (currentRole === "guard") return;
-            
-            // 限制當前登入的管理者只能勾選屬於自己的欄位
-            if (currentRole !== adminCol) {
-                alert(`您目前登入為 ${currentRole}，無法勾選 ${adminCol} 的確認欄！`);
+            if (pass !== "1189") {
+                showLoginError("❌ 驗證密碼錯誤！");
+                document.getElementById("login-pass").value = "";
                 return;
             }
 
-            const currentVal = mockDatabase[index][adminCol];
-            mockDatabase[index][adminCol] = currentVal === "OK" ? "" : "OK";
-            
-            localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+            // 檢查是否有其他管理者正在登入
+            const session = getActiveSession();
+            if (session && session.sessionId !== SESSION_ID) {
+                const elapsed = Date.now() - session.loginTime;
+
+                // 10 秒保護期內，不允許踢人
+                if (elapsed < PROTECT_MS) {
+                    const remaining = Math.ceil((PROTECT_MS - elapsed) / 1000);
+                    showLoginError(`⚠️ ${session.user} 於 ${remaining} 秒前登入（保護期內），請稍後再試。`);
+                    document.getElementById("login-pass").value = "";
+                    return;
+                }
+
+                // 超過保護期，踢出舊管理者
+                // (舊管理者的 kickCheck 會偵測到 session 變更並自動登出)
+            }
+
+            // 登入成功
+            currentRole = user;
+            setActiveSession(user);
+
+            const badge = document.getElementById("role-badge");
+            badge.innerText = `主任: ${user}`;
+            badge.className = "text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold";
+
+            document.getElementById("logout-btn").classList.remove("hidden");
+            document.getElementById("toggle-role-btn").innerText = "切換至【停車場管理員介面】";
+            document.getElementById("search-section").classList.add("hidden");
+            document.getElementById("admin-section").classList.remove("hidden");
+
+            closeLoginModal();
+            renderAll();
+            startAdminAutoSync();
+            startKickCheck();
+
+            document.getElementById("login-pass").value = "";
+
+            logAction("登入", user, `${user} 管理者登入系統`, "");
+
+            // 提示是否踢出了其他人
+            if (session && session.sessionId !== SESSION_ID) {
+                logAction("踢出", user, `${user} 踢出 ${session.user} 的登入連線`, "");
+                alert(`已由 ${user} 接管登入。\n原先 ${session.user} 的連線已被踢出。`);
+            }
+        }
+
+        function logout() {
+            clearActiveSession();
+            currentRole = "guard";
+            stopAutoSync();
+            stopKickCheck();
+
+            const badge = document.getElementById("role-badge");
+            if (badge) {
+                badge.innerText = "停車場管理員";
+                badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
+            }
+            const logoutBtn = document.getElementById("logout-btn");
+            if (logoutBtn) logoutBtn.classList.add("hidden");
+            const toggleBtn = document.getElementById("toggle-role-btn");
+            if (toggleBtn) toggleBtn.innerText = "切換至【管理者登入】";
+            const searchSec = document.getElementById("search-section");
+            if (searchSec) searchSec.classList.remove("hidden");
+            const adminSec = document.getElementById("admin-section");
+            if (adminSec) adminSec.classList.add("hidden");
+
+            renderGuardPendingList();
+            const si = document.getElementById("search-input");
+            renderResults(si ? si.value : "");
+        }
+
+        // ============================================================
+        //  管理者直接新增車牌
+        // ============================================================
+        function adminAddLicense(remark) {
+            const plate = document.getElementById("temp-plate").value.trim().toUpperCase();
+            const unit = document.getElementById("temp-unit").value.trim();
+            if (!plate) { alert("請輸入車牌號碼"); return; }
+
+            const type = remark === '常駐車輛' ? 'regular' : 'temp';
+            const newEntry = {
+                "單位別": unit || "新增車輛", "分項": "新增登記", "車牌": plate,
+                "電話": "-", "姓名": "主管登記", "備註": remark,
+                "管理者1": (currentRole === "admin1" || currentRole === "admin") ? "OK" : "",
+                "管理者2": currentRole === "admin2" ? "OK" : "",
+                "管理者3": currentRole === "admin3" ? "OK" : "",
+                "類型": type
+            };
+
+            localAdditions.unshift(newEntry);
+            saveLocalAdditions();
+            logAction("新增車牌", currentRole, `直接核發車牌 ${plate} (${remark})`, plate);
+            alert(`已直接核發車牌 ${plate} (${remark})`);
+            document.getElementById("temp-plate").value = "";
+            document.getElementById("temp-unit").value = "";
+            renderAll();
+        }
+
+        // ============================================================
+        //  通用功能
+        // ============================================================
+        function updateSuggestions() {
+            const dl = document.getElementById("unit-suggestions");
+            if (!dl) return;
+            const merged = getMergedDatabase();
+            const units = [...new Set(merged.map(i => (i["單位別"]||"").trim()).filter(u => u.length > 0))];
+            dl.innerHTML = "";
+            units.forEach(u => { const o = document.createElement("option"); o.value = u; dl.appendChild(o); });
+        }
+
+        function updateField(index, field, value) {
+            const merged = getMergedDatabase();
+            const item = merged[index];
+            if (!item) return;
+
+            const plate = (item["車牌"] || "").toUpperCase().trim();
+            const oldValue = item[field] || "";
+
+            // 判斷是 GitHub 資料還是本地新增
+            const ghIdx = githubDatabase.findIndex(g => (g["車牌"]||"").toUpperCase().trim() === plate);
+            if (ghIdx >= 0) {
+                // GitHub 資料 → 存入 localChecks
+                if (!localChecks[plate]) localChecks[plate] = {};
+                localChecks[plate][field] = value;
+                saveLocalChecks();
+            } else {
+                // 本地新增 → 直接修改
+                const laIdx = localAdditions.findIndex(l => (l["車牌"]||"").toUpperCase().trim() === plate);
+                if (laIdx >= 0) {
+                    localAdditions[laIdx][field] = value;
+                    saveLocalAdditions();
+                }
+            }
+            logAction("修改欄位", currentRole, `修改車牌 ${plate} 的 ${field} 欄位：「${oldValue}」→「${value}」`, plate);
             renderAdminDatabase();
         }
 
-        // 渲染後台資料庫與勾選欄
+        function toggleAdminCheck(index, adminCol) {
+            if (currentRole === "guard") return;
+            if (currentRole !== "admin" && currentRole !== adminCol) {
+                alert(`您為 ${currentRole}，無法勾選 ${adminCol}！`);
+                return;
+            }
+
+            const merged = getMergedDatabase();
+            const item = merged[index];
+            if (!item) return;
+
+            const plate = (item["車牌"] || "").toUpperCase().trim();
+            const newVal = item[adminCol] === "OK" ? "" : "OK";
+            const actionText = newVal === "OK" ? "勾選核簽" : "取消核簽";
+
+            const ghIdx = githubDatabase.findIndex(g => (g["車牌"]||"").toUpperCase().trim() === plate);
+            if (ghIdx >= 0) {
+                if (!localChecks[plate]) localChecks[plate] = {};
+                localChecks[plate][adminCol] = newVal;
+                saveLocalChecks();
+            } else {
+                const laIdx = localAdditions.findIndex(l => (l["車牌"]||"").toUpperCase().trim() === plate);
+                if (laIdx >= 0) {
+                    localAdditions[laIdx][adminCol] = newVal;
+                    saveLocalAdditions();
+                }
+            }
+            logAction(actionText, currentRole, `${currentRole} 將車牌 ${plate} 的核簽改為 ${newVal || '無'}`, plate);
+            renderAdminDatabase();
+        }
+
+        // ============================================================
+        //  本機 Excel 載入
+        // ============================================================
+        function loadExcelFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                    const ws = getBestSheet(wb);
+                    const json = XLSX.utils.sheet_to_json(ws);
+                    
+                    const parsed = parseExcelJson(json);
+                    if (parsed.length === 0) {
+                        alert("⚠️ 匯入失敗！選擇的 Excel 中沒有任何有效車牌資料列，或是工作表為空。\n請確認工作表內是否有標頭欄位（例如欄位包含『車牌』或『車號』等名稱）！");
+                        input.value = "";
+                        return;
+                    }
+
+                    githubDatabase = parsed;
+                    localStorage.setItem("github_db", JSON.stringify(githubDatabase));
+                    localStorage.setItem("parking_db_time", new Date().toLocaleString("zh-TW"));
+                    cleanupLocalAdditions();
+                    logAction("匯入Excel", currentRole, `手動匯入本機 Excel 檔案: ${file.name} (載入 ${githubDatabase.length} 筆資料)`, "");
+                    alert(`成功匯入 ${githubDatabase.length} 筆資料！`);
+                    renderAll();
+                } catch (err) { alert("解析失敗: " + err.message); }
+            };
+            reader.readAsArrayBuffer(file);
+            input.value = "";
+        }
+
+        // ============================================================
+        //  匯出 Excel (合併後的完整資料)
+        // ============================================================
+        function downloadExcel() {
+            const merged = getMergedDatabase();
+            if (merged.length === 0) { alert("沒有資料可匯出！"); return; }
+            try {
+                const exp = merged.map(i => ({
+                    "單位別":i["單位別"], "分項":i["分項"], "車牌":i["車牌"],
+                    "電話":i["電話"], "姓名":i["姓名"], "備註":i["備註"],
+                    "管理者1":i["管理者1"], "管理者2":i["管理者2"],
+                    "管理者3":i["管理者3"], "類型":i["類型"]
+                }));
+                const ws = XLSX.utils.json_to_sheet(exp);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "工作表1");
+                XLSX.writeFile(wb, `永青停車清單_${new Date().toISOString().slice(0,10)}.xlsx`);
+                logAction("匯出Excel", currentRole, `導出合併資料庫 Excel (${merged.length} 筆資料)`, "");
+                alert("Excel 已下載！\n上傳至 GitHub 後，本地新增的資料將在下次同步時自動清理。");
+            } catch (err) { alert("匯出失敗: " + err.message); }
+        }
+
+        // ============================================================
+        //  日誌紀錄 Log 機制
+        // ============================================================
+        function logAction(actionType, user, detail, plate = "") {
+            const rawLogs = localStorage.getItem("parking_logs");
+            const logs = rawLogs ? JSON.parse(rawLogs) : [];
+            logs.unshift({
+                timestamp: Date.now(),
+                dateStr: new Date().toISOString().slice(0, 10), // "2026-07-01"
+                actionType,
+                user,
+                detail,
+                plate
+            });
+            // 只保留最近 1000 筆紀錄
+            if (logs.length > 1000) logs.pop();
+            localStorage.setItem("parking_logs", JSON.stringify(logs));
+        }
+
+        // 開啟日誌檢視視窗 (黑底白字新分頁)
+        function openLogViewer() {
+            const logWindow = window.open("", "_blank");
+            if (!logWindow) {
+                alert("無法開啟新分頁，請檢查瀏覽器彈出式視窗攔截設定！");
+                return;
+            }
+
+            const currentLogs = localStorage.getItem("parking_logs") || "[]";
+
+            logWindow.document.write(`
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>永青營造 - 系統操作日誌</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <style>
+        body { font-family: monospace, system-ui; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* 手機橫向 (Landscape) RWD 緊湊排版優化 */
+        @media (max-height: 500px) {
+            body { padding: 0.5rem !important; }
+            .header-section { margin-bottom: 0.5rem !important; padding-bottom: 0.375rem !important; }
+            .header-title { font-size: 0.875rem !important; }
+            .header-desc { display: none; }
+            .filter-section { margin-bottom: 0.5rem !important; gap: 0.375rem !important; }
+            .filter-label { margin-bottom: 0.125rem !important; font-size: 8px !important; }
+            .filter-item { padding: 0.375rem !important; font-size: 10px !important; }
+            .log-table-container { border-radius: 0.5rem !important; }
+            th, td { padding: 0.375rem 0.25rem !important; font-size: 10px !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 flex flex-col">
+    <!-- 標頭 -->
+    <div class="header-section flex justify-between items-center border-b border-slate-800 pb-4 mb-6">
+        <div>
+            <h1 class="header-title text-sm md:text-xl font-bold text-white tracking-widest">📋 永青營造 - 系統操作紀錄日誌</h1>
+            <p class="header-desc text-slate-500 text-xs mt-1">本地快取最新 1000 筆操作日誌 (黑底白字終端樣式)</p>
+        </div>
+        <div class="flex space-x-2">
+            <button onclick="clearLogs()" class="bg-rose-950/60 border border-rose-800 text-rose-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-900 transition-all">🗑️ 清除</button>
+            <button onclick="window.close()" class="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition-all">關閉</button>
+        </div>
+    </div>
+
+    <!-- 篩選列 -->
+    <div class="filter-section grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <!-- 時間篩選 -->
+        <div>
+            <label class="filter-label block text-slate-500 text-[10px] uppercase mb-1 font-bold">時間範圍</label>
+            <select id="time-filter" onchange="filterLogs()" class="filter-item w-full bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="all">全部時間</option>
+                <option value="today">今日紀錄 (Daily)</option>
+                <option value="weekly">本週紀錄 (Weekly)</option>
+            </select>
+        </div>
+        <!-- 行動類型篩選 -->
+        <div>
+            <label class="filter-label block text-slate-500 text-[10px] uppercase mb-1 font-bold">動作類別</label>
+            <select id="type-filter" onchange="filterLogs()" class="filter-item w-full bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="all">全部動作</option>
+                <option value="新增車牌">新增車牌</option>
+                <option value="核可新增">核可新增</option>
+                <option value="修改欄位">修改欄位</option>
+                <option value="勾選核簽">勾選核簽</option>
+                <option value="取消核簽">取消核簽</option>
+                <option value="提交申請">提交申請</option>
+                <option value="駁回">駁回申請</option>
+                <option value="登入">登入/登出</option>
+                <option value="匯出Excel">匯出 Excel</option>
+                <option value="匯入Excel">匯入 Excel</option>
+            </select>
+        </div>
+        <!-- 關鍵字搜尋 -->
+        <div class="sm:col-span-2">
+            <label class="filter-label block text-slate-500 text-[10px] uppercase mb-1 font-bold">搜尋車牌 / 操作人員 / 細節關鍵字</label>
+            <input type="text" id="search-filter" oninput="filterLogs()" placeholder="鍵入搜尋..." class="filter-item w-full bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+        </div>
+    </div>
+
+    <!-- 日誌表格 -->
+    <div class="log-table-container flex-1 overflow-x-auto border border-slate-800 rounded-xl bg-slate-900/40">
+        <table class="w-full text-left text-xs border-collapse">
+            <thead>
+                <tr class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                    <th class="p-3 w-40 font-bold">時間 (Timestamp)</th>
+                    <th class="p-3 w-28 font-bold">操作者 (User)</th>
+                    <th class="p-3 w-32 font-bold">動作 (Action)</th>
+                    <th class="p-3 w-28 font-bold">車牌 (Plate)</th>
+                    <th class="p-3 font-bold">詳細說明 (Details)</th>
+                </tr>
+            </thead>
+            <tbody id="log-table-body" class="divide-y divide-slate-800/60 font-mono">
+                <!-- 日誌項目 -->
+            </tbody>
+        </table>
+        <div id="no-logs" class="hidden text-center py-12 text-slate-600">無符合篩選條件的日誌紀錄</div>
+    </div>
+
+    <!-- JS 邏輯 -->
+    <script>
+        const logs = ${currentLogs};
+
+        function renderLogs(filteredLogs) {
+            const tbody = document.getElementById("log-table-body");
+            const noLogs = document.getElementById("no-logs");
+            tbody.innerHTML = "";
+
+            if (filteredLogs.length === 0) {
+                noLogs.classList.remove("hidden");
+                return;
+            }
+            noLogs.classList.add("hidden");
+
+            filteredLogs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleString("zh-TW");
+                
+                // 行動標籤顏色
+                let actionBadge = "";
+                if (log.actionType.includes("新增") || log.actionType.includes("核可")) {
+                    actionBadge = \`<span class="text-emerald-400 font-bold font-sans px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">\${log.actionType}</span>\`;
+                } else if (log.actionType.includes("修改")) {
+                    actionBadge = \`<span class="text-sky-400 font-bold font-sans px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">\${log.actionType}</span>\`;
+                } else if (log.actionType.includes("駁回") || log.actionType.includes("踢出")) {
+                    actionBadge = \`<span class="text-rose-400 font-bold font-sans px-1.5 py-0.5 rounded bg-rose-500/10 border border-rose-500/20">\${log.actionType}</span>\`;
+                } else if (log.actionType.includes("勾選") || log.actionType.includes("簽")) {
+                    actionBadge = \`<span class="text-indigo-400 font-bold font-sans px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">\${log.actionType}</span>\`;
+                } else {
+                    actionBadge = \`<span class="text-slate-400 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">\${log.actionType}</span>\`;
+                }
+
+                // 操作人員標籤
+                let userBadge = "";
+                if (log.user === "guard") {
+                    userBadge = \`<span class="text-slate-400 font-bold">警衛 (guard)</span>\`;
+                } else {
+                    userBadge = \`<span class="text-amber-400 font-bold">\${log.user}</span>\`;
+                }
+
+                tbody.innerHTML += \`
+                    <tr class="hover:bg-slate-900/60 transition-colors">
+                        <td class="p-3 text-slate-400">\${time}</td>
+                        <td class="p-3">\${userBadge}</td>
+                        <td class="p-3">\${actionBadge}</td>
+                        <td class="p-3 font-bold tracking-wider text-white font-sans">\${log.plate || '-'}</td>
+                        <td class="p-3 text-slate-300">\${log.detail}</td>
+                    </tr>
+                \`;
+            });
+        }
+
+        function filterLogs() {
+            const timeVal = document.getElementById("time-filter").value;
+            const typeVal = document.getElementById("type-filter").value;
+            const searchVal = document.getElementById("search-filter").value.trim().toUpperCase();
+
+            let result = logs;
+
+            // 1. 時間篩選
+            const now = Date.now();
+            const startOfToday = new Date().setHours(0,0,0,0);
+            const startOfWeek = now - 7 * 24 * 60 * 60 * 1000;
+
+            if (timeVal === "today") {
+                result = result.filter(l => l.timestamp >= startOfToday);
+            } else if (timeVal === "weekly") {
+                result = result.filter(l => l.timestamp >= startOfWeek);
+            }
+
+            // 2. 行動篩選
+            if (typeVal !== "all") {
+                result = result.filter(l => l.actionType.includes(typeVal));
+            }
+
+            // 3. 關鍵字搜尋
+            if (searchVal) {
+                result = result.filter(l => {
+                    const plateMatch = (l.plate || "").toUpperCase().includes(searchVal);
+                    const userMatch = (l.user || "").toUpperCase().includes(searchVal);
+                    const detailMatch = (l.detail || "").toUpperCase().includes(searchVal);
+                    return plateMatch || userMatch || detailMatch;
+                });
+            }
+
+            renderLogs(result);
+        }
+
+        function clearLogs() {
+            if (confirm("⚠️ 確定要清除所有本地操作日誌嗎？這將無法復原！")) {
+                localStorage.setItem("parking_logs", "[]");
+                location.reload();
+            }
+        }
+
+        // 頁面開啟時渲染全部
+        renderLogs(logs);
+    <\/script>
+</body>
+</html>
+            `);
+            logWindow.document.close();
+        }
+
+        // ============================================================
+        //  渲染後台資料庫
+        // ============================================================
         function renderAdminDatabase() {
             const list = document.getElementById("database-list");
+            if (!list) return;
+            const merged = getMergedDatabase();
+            document.getElementById("db-count").innerText = merged.length;
             list.innerHTML = "";
-            document.getElementById("db-count").innerText = mockDatabase.length;
-            
-            mockDatabase.forEach((item, index) => {
-                const checked1 = item["管理者1"] === "OK";
-                const checked2 = item["管理者2"] === "OK";
-                const checked3 = item["管理者3"] === "OK";
 
-                list.innerHTML += `
-                    <div class="p-3 border border-slate-700/80 rounded-xl bg-slate-900/40 space-y-2">
-                        <div class="flex justify-between items-center font-bold text-slate-300">
-                            <span class="font-mono text-sm tracking-wider">${item["車牌"]}</span>
-                            <span class="text-slate-500 font-normal text-[10px]">#${index+1}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                                <label class="block text-[9px] text-slate-500 mb-0.5">姓名</label>
-                                <input type="text" value="${item["姓名"] || ''}" onchange="updateField(${index}, '姓名', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="姓名">
-                            </div>
-                            <div>
-                                <label class="block text-[9px] text-slate-500 mb-0.5">電話</label>
-                                <input type="text" value="${item["電話"] || ''}" onchange="updateField(${index}, '電話', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="電話">
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-[9px] text-slate-500 mb-0.5">備註</label>
-                                <input type="text" value="${item["備註"] || ''}" onchange="updateField(${index}, '備註', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="備註">
-                            </div>
-                            
-                            <!-- 三位管理者審核核取方塊 -->
-                            <div class="col-span-2 border-t border-slate-700/40 pt-2 flex justify-between items-center">
-                                <span class="text-[10px] text-slate-400">核簽審查：</span>
-                                <div class="flex space-x-3 text-[10px]">
-                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者1')">
-                                        <input type="checkbox" ${checked1 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
-                                        <span class="${checked1 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管1</span>
-                                    </label>
-                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者2')">
-                                        <input type="checkbox" ${checked2 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
-                                        <span class="${checked2 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管2</span>
-                                    </label>
-                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者3')">
-                                        <input type="checkbox" ${checked3 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
-                                        <span class="${checked3 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管3</span>
-                                    </label>
-                                </div>
+            merged.forEach((item, index) => {
+                const c1 = item["管理者1"]==="OK", c2 = item["管理者2"]==="OK", c3 = item["管理者3"]==="OK";
+                const plate = (item["車牌"]||"").toUpperCase().trim();
+                const isLocal = !githubDatabase.some(g => (g["車牌"]||"").toUpperCase().trim() === plate);
+                const localTag = isLocal ? `<span class="text-amber-400 text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded ml-1">本地</span>` : "";
+
+                list.innerHTML += `<div class="p-3 border ${isLocal ? 'border-amber-700/60 bg-amber-950/20' : 'border-slate-700/80 bg-slate-900/40'} rounded-xl space-y-2">
+                    <div class="flex justify-between items-center font-bold text-slate-300">
+                        <span class="font-mono text-sm tracking-wider">${item["車牌"]}${localTag}</span>
+                        <span class="text-slate-500 font-normal text-[10px]">#${index+1}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div><label class="block text-[9px] text-slate-500 mb-0.5">姓名</label>
+                            <input type="text" value="${item["姓名"]||''}" onchange="updateField(${index},'姓名',this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="姓名"></div>
+                        <div><label class="block text-[9px] text-slate-500 mb-0.5">電話</label>
+                            <input type="text" value="${item["電話"]||''}" onchange="updateField(${index},'電話',this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="電話"></div>
+                        <div class="col-span-2"><label class="block text-[9px] text-slate-500 mb-0.5">備註</label>
+                            <input type="text" value="${item["備註"]||''}" onchange="updateField(${index},'備註',this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="備註"></div>
+                        <div class="col-span-2 border-t border-slate-700/40 pt-2 flex justify-between items-center">
+                            <span class="text-[10px] text-slate-400">核簽：</span>
+                            <div class="flex space-x-3 text-[10px]">
+                                <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index},'管理者1')">
+                                    <input type="checkbox" ${c1?'checked':''} disabled class="rounded border-slate-600 text-indigo-500 focus:ring-0">
+                                    <span class="${c1?'text-indigo-400 font-bold':'text-slate-500'}">主管1</span></label>
+                                <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index},'管理者2')">
+                                    <input type="checkbox" ${c2?'checked':''} disabled class="rounded border-slate-600 text-indigo-500 focus:ring-0">
+                                    <span class="${c2?'text-indigo-400 font-bold':'text-slate-500'}">主管2</span></label>
+                                <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index},'管理者3')">
+                                    <input type="checkbox" ${c3?'checked':''} disabled class="rounded border-slate-600 text-indigo-500 focus:ring-0">
+                                    <span class="${c3?'text-indigo-400 font-bold':'text-slate-500'}">主管3</span></label>
                             </div>
                         </div>
-                    </div>`;
-            });
-        }
-        }
-
-        // 本機 Excel 檔案解析邏輯 (落後台手動備用)
-        function initExcelListener() {
-            const excelInput = document.getElementById('excel-file');
-            if (!excelInput) return;
-            excelInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    
-                    let sheetName = "工地別";
-                    if(!workbook.Sheets[sheetName]) {
-                        sheetName = workbook.SheetNames[0];
-                    }
-                    
-                    const worksheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    
-                    mockDatabase = jsonData.map(row => ({
-                        "單位別": row["單位別"] || "",
-                        "分項": row["分項"] || "",
-                        "車牌": row["車牌"] || "",
-                        "電話": row["電話"] || "",
-                        "姓名": row["姓名"] || "",
-                        "備註": row["備註"] || "",
-                        "管理者1": row["管理者1"] || "",
-                        "管理者2": row["管理者2"] || "",
-                        "管理者3": row["管理者3"] || "",
-                        "類型": "regular"
-                    }));
-                    
-                    localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
-                    alert("成功本機匯入資料共 " + mockDatabase.length + " 筆！");
-                    renderAdminDatabase();
-                    updateSuggestions();
-                    renderResults(document.getElementById("search-input").value);
-                };
-                reader.readAsArrayBuffer(file);
+                    </div></div>`;
             });
         }
 
-        // 綁定本機 Excel 上傳監聽器
-        window.addEventListener('DOMContentLoaded', initExcelListener);
+        // 下載雲端原始 Excel
+        function downloadRawExcelFromGithub() {
+            window.open(GITHUB_RAW_URL, "_blank");
+            logAction("下載Excel", currentRole, "下載雲端原始 Excel 檔案 (從 GitHub)", "");
+        }
     </script>
 </body>
 </html>
