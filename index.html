@@ -625,6 +625,7 @@
                 localStorage.setItem("github_db", JSON.stringify(githubDatabase));
                 const now = new Date().toLocaleString("zh-TW");
                 localStorage.setItem("parking_db_time", now);
+                localStorage.setItem("parking_db_iso", new Date().toISOString());
 
                 // 同步時順便抓取並更新該檔案在 GitHub 上的最新 ETag 與 Mtime，以此為基準
                 try {
@@ -813,16 +814,32 @@
         //  版本號與狀態燈更新 UI 邏輯
         // ============================================================
         function formatMtimeToVersion(mtimeStr) {
-            if (!mtimeStr) return "Ver 2026/--/--/--:--";
-            try {
+            let targetDate = null;
+            if (mtimeStr) {
                 const d = new Date(mtimeStr);
-                if (isNaN(d.getTime())) return "Ver 2026/--/--/--:--";
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const r = String(d.getDate()).padStart(2, '0');
-                const h = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                return `Ver ${y}/${m}/${r}/${h}-${min}`;
+                if (!isNaN(d.getTime())) {
+                    targetDate = d;
+                }
+            }
+            if (!targetDate) {
+                const localDbIso = localStorage.getItem("parking_db_iso");
+                if (localDbIso) {
+                    const d = new Date(localDbIso);
+                    if (!isNaN(d.getTime())) {
+                        targetDate = d;
+                    }
+                }
+            }
+            if (!targetDate) {
+                targetDate = new Date();
+            }
+            try {
+                const y = targetDate.getFullYear();
+                const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const r = String(targetDate.getDate()).padStart(2, '0');
+                const h = String(targetDate.getHours()).padStart(2, '0');
+                const min = String(targetDate.getMinutes()).padStart(2, '0');
+                return `Ver ${y}/${m}/${r}/${h}:${min}`;
             } catch(e) {
                 return "Ver 2026/--/--/--:--";
             }
@@ -1193,6 +1210,7 @@
                     githubDatabase = parsed;
                     localStorage.setItem("github_db", JSON.stringify(githubDatabase));
                     localStorage.setItem("parking_db_time", new Date().toLocaleString("zh-TW"));
+                    localStorage.setItem("parking_db_iso", new Date().toISOString());
                     cleanupLocalAdditions();
                     logAction("匯入Excel", currentRole, `手動匯入本機 Excel 檔案: ${file.name} (載入 ${githubDatabase.length} 筆資料)`, "");
                     alert(`成功匯入 ${githubDatabase.length} 筆資料！`);
