@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>永青營造 - 停車通過檢查系統</title>
+    <!-- 引入 Google Fonts (Inter & Noto Sans TC) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 SheetJS 用於處理 Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                        mono: ['SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* iPhone 13 標準直式外框限制 */
+        @media (min-width: 640px) {
+            .iphone-13-frame {
+                width: 390px;
+                height: 844px;
+                max-height: 844px;
+                border: 12px solid #1e293b;
+                border-radius: 48px;
+                position: relative;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                overflow: hidden;
+                box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+            }
+        }
+        @media (max-width: 639px) {
+            .iphone-13-frame {
+                width: 100%;
+                height: 100vh;
+                border: none;
+                border-radius: 0;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+        }
+        /* 隱藏滾動條 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 磨砂玻璃效果 */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* 脈衝綠色呼吸燈 */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+        }
+        .pass-glow {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        /* 脈衝紅色呼吸燈 */
+        @keyframes pulse-glow-red {
+            0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+        }
+        .fail-glow {
+            animation: pulse-glow-red 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 flex justify-center items-center min-h-screen font-sans text-slate-100 antialiased p-0 sm:p-4">
+
+    <!-- iPhone 13 容器 -->
+    <div class="iphone-13-frame flex flex-col">
+        
+        <!-- 頂部：永青營造標頭 -->
+        <div class="bg-slate-900/90 border-b border-slate-800 text-slate-200 py-4 px-6 text-center font-bold text-base tracking-wider shadow-sm flex justify-between items-center shrink-0">
+            <div class="flex items-center space-x-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></div>
+                <span class="font-extrabold text-slate-100 tracking-widest text-sm">永青營造 停車管理</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span id="role-badge" class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold">入口管理</span>
+                <button id="logout-btn" onclick="logout()" class="hidden text-xs bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-1 rounded-full font-bold">登出</button>
+            </div>
+        </div>
+
+        <!-- 主內容區 (可滾動) -->
+        <div class="flex-1 overflow-y-auto p-4 no-scrollbar flex flex-col justify-between space-y-4">
+            
+            <div id="app-body" class="space-y-4">
+                <!-- GitHub 連線與 Excel 載入設定 -->
+                <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
+                    <label class="block text-xs font-semibold text-slate-400 tracking-wider">🔗 GitHub 同步設定</label>
+                    <div class="space-y-2 text-xs">
+                        <input type="password" id="gh-token" placeholder="輸入 GitHub Personal Access Token (PAT)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="text" id="gh-repo" placeholder="帳號/專案名稱 (例: user/parking-pass)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <input type="text" id="gh-path" placeholder="檔案路徑 (例: 永青三總停車清單.xlsx)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <button onclick="syncFromGithub()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold active:scale-95 transition-all">從 GitHub 載入車牌清單</button>
+                    </div>
+                </div>
+
+                <!-- 車牌查詢核心區塊 (入口管理) -->
+                <div id="search-section" class="space-y-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-slate-500 font-mono text-sm">🔍</span>
+                        </div>
+                        <input type="text" id="search-input" placeholder="👉 請輸入車牌最後 3 碼或 4 碼 👈" class="w-full px-4 py-8 bg-slate-900/80 border-2 border-emerald-500/50 rounded-2xl focus:outline-none focus:border-emerald-400 font-mono text-3xl text-center font-black tracking-widest uppercase text-white placeholder-slate-600 shadow-2xl transition-all duration-200 focus:ring-4 focus:ring-emerald-500/20">
+                    </div>
+
+                    <!-- 比對結果動態顯示 -->
+                    <div id="result-container" class="space-y-3 min-h-[200px]">
+                        <p class="text-center text-slate-500 text-xs py-8">請輸入車牌號碼進行比對</p>
+                    </div>
+                </div>
+
+                <!-- 工地主任後台 -->
+                <div id="admin-section" class="hidden space-y-4">
+                    <!-- 新增車牌區 -->
+                    <div class="bg-amber-950/40 border border-amber-900/60 p-4 rounded-2xl shadow-lg space-y-3">
+                        <h3 class="text-sm font-extrabold text-amber-300 tracking-wider flex items-center">
+                            <span class="mr-1.5">🎟️</span> 核發/新增車牌
+                        </h3>
+                        <div class="space-y-2.5 text-xs">
+                            <input type="text" id="temp-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 font-mono text-sm tracking-wider uppercase">
+                            <input type="text" id="temp-unit" list="unit-suggestions" placeholder="單位別 / 姓名 (支援智慧下拉快選)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 text-sm">
+                            <datalist id="unit-suggestions"></datalist>
+                            <div class="grid grid-cols-3 gap-2 pt-1">
+                                <button onclick="addNewLicense('臨時(當日)')" class="bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當日</button>
+                                <button onclick="addNewLicense('臨時(當周)')" class="bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當周</button>
+                                <button onclick="addNewLicense('常駐車輛')" class="bg-emerald-700 hover:bg-emerald-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">常駐</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 資料庫編輯與確認管理 -->
+                    <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="text-sm font-extrabold text-slate-300 tracking-wider">📂 資料確認後台 (<span id="db-count">0</span>)</h3>
+                            <button onclick="saveToGithub()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold transition-all">儲存並推送到 GitHub</button>
+                        </div>
+                        <div id="database-list" class="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 text-xs no-scrollbar">
+                            <!-- 資料列表 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部權限切換鈕 -->
+            <div class="pt-4 shrink-0">
+                <button id="toggle-role-btn" onclick="toggleRole()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm py-3.5 rounded-2xl font-bold tracking-wider shadow-lg border border-slate-700 active:scale-98 transition-all duration-200">
+                    切換至【管理者登入】
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登入 Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden flex justify-center items-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 space-y-4 shadow-2xl">
+            <h3 class="text-lg font-extrabold text-white text-center">管理者權限驗證</h3>
+            <div class="space-y-3">
+                <select id="login-user" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500">
+                    <option value="admin1">管理者 1 (admin1)</option>
+                    <option value="admin2">管理者 2 (admin2)</option>
+                    <option value="admin3">管理者 3 (admin3)</option>
+                </select>
+                <input type="password" id="login-pass" placeholder="請輸入密碼 (預設: 1189)" class="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 text-center tracking-widest">
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeLoginModal()" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold text-sm">取消</button>
+                <button onclick="submitLogin()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-sm">驗證登入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 核心 JavaScript 邏輯 -->
+    <script>
+        let mockDatabase = [];
+        let currentRole = "guard"; // guard, admin1, admin2, admin3
+        let githubFileSha = ""; // 儲存 GitHub 檔案的 SHA 以便更新
+
+        // 預設讀取 localStorage 設定值
+        window.onload = function() {
+            document.getElementById("gh-token").value = localStorage.getItem("gh_token") || "";
+            document.getElementById("gh-repo").value = localStorage.getItem("gh_repo") || "";
+            document.getElementById("gh-path").value = localStorage.getItem("gh_path") || "永青三總停車清單.xlsx";
+            
+            // 如果本地有快取資料庫，預先載入
+            const cache = localStorage.getItem("parking_db");
+            if (cache) {
+                mockDatabase = JSON.parse(cache);
+                githubFileSha = localStorage.getItem("gh_file_sha") || "";
+                renderAdminDatabase();
+                renderResults("");
+                updateSuggestions();
+            }
+
+            document.getElementById("search-input").addEventListener("input", function(e) {
+                renderResults(e.target.value.trim());
+            });
+        };
+
+        // 智慧提取並更新現有資料庫的「單位別」作為智慧下拉快選清單
+        function updateSuggestions() {
+            const datalist = document.getElementById("unit-suggestions");
+            if (!datalist) return;
+            
+            // 提取不重複且非空的單位別
+            const units = Array.from(new Set(
+                mockDatabase.map(item => (item["單位別"] || "").trim())
+            )).filter(unit => unit.length > 0);
+
+            datalist.innerHTML = "";
+            units.forEach(unit => {
+                const option = document.createElement("option");
+                option.value = unit;
+                datalist.appendChild(option);
+            });
+        }
+
+        // 讀取 GitHub 檔案
+        async function syncFromGithub() {
+            const token = document.getElementById("gh-token").value.trim();
+            const repo = document.getElementById("gh-repo").value.trim();
+            const path = document.getElementById("gh-path").value.trim();
+
+            if (!token || !repo || !path) {
+                alert("請填寫 GitHub Token、Repo 與路徑！");
+                return;
+            }
+
+            // 儲存設定到本地
+            localStorage.setItem("gh_token", token);
+            localStorage.setItem("gh_repo", repo);
+            localStorage.setItem("gh_path", path);
+
+            const url = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        "Authorization": `token ${token}`,
+                        "Accept": "application/vnd.github.v3+json"
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("取得 GitHub 檔案失敗，請檢查權限與路徑！");
+                }
+
+                const data = await response.json();
+                githubFileSha = data.sha;
+                localStorage.setItem("gh_file_sha", githubFileSha);
+
+                // 將 Base64 解碼為 ArrayBuffer
+                const binaryString = atob(data.content.replace(/\s/g, ''));
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const workbook = XLSX.read(bytes.buffer, {type: 'array'});
+                const sheetName = workbook.SheetNames[0]; // 預設讀取第一個分頁
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                // 標準化結構，並新增管理確認欄 (管理者1, 管理者2, 管理者3)
+                mockDatabase = jsonData.map(row => ({
+                    "單位別": row["單位別"] || "",
+                    "分項": row["分項"] || "",
+                    "車牌": row["車牌"] || "",
+                    "電話": row["電話"] || "",
+                    "姓名": row["姓名"] || "",
+                    "備註": row["備註"] || "",
+                    "管理者1": row["管理者1"] || "",
+                    "管理者2": row["管理者2"] || "",
+                    "管理者3": row["管理者3"] || "",
+                    "類型": row["類型"] || "regular"
+                }));
+
+                localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+                alert(`成功從 GitHub 同步 ${mockDatabase.length} 筆資料！`);
+                renderAdminDatabase();
+                updateSuggestions();
+                renderResults(document.getElementById("search-input").value);
+            } catch (err) {
+                alert("錯誤: " + err.message);
+            }
+        }
+
+        // 推送回 GitHub
+        async function saveToGithub() {
+            const token = localStorage.getItem("gh_token");
+            const repo = localStorage.getItem("gh_repo");
+            const path = localStorage.getItem("gh_path");
+
+            if (!token || !repo || !path || !githubFileSha) {
+                alert("尚未從 GitHub 載入資料，無法推回更新！");
+                return;
+            }
+
+            try {
+                // 將目前資料轉為 Excel 檔案的 ArrayBuffer
+                const cleanExportDb = mockDatabase.map(item => ({
+                    "單位別": item["單位別"],
+                    "分項": item["分項"],
+                    "車牌": item["車牌"],
+                    "電話": item["電話"],
+                    "姓名": item["姓名"],
+                    "備註": item["備註"],
+                    "管理者1": item["管理者1"],
+                    "管理者2": item["管理者2"],
+                    "管理者3": item["管理者3"],
+                    "類型": item["類型"]
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(cleanExportDb);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "工作表1");
+                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+                // 將 ArrayBuffer 轉成 Base64
+                let binary = "";
+                const bytes = new Uint8Array(excelBuffer);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64Content = btoa(binary);
+
+                // 發送 PUT 請求至 GitHub API 進行覆寫更新
+                const url = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}`;
+                const response = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `token ${token}`,
+                        "Content-Type": "application/json",
+                        "Accept": "application/vnd.github.v3+json"
+                    },
+                    body: JSON.stringify({
+                        message: `Update parking database via checking app - ${new Date().toISOString()}`,
+                        content: base64Content,
+                        sha: githubFileSha
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error("推送更新至 GitHub 失敗！");
+                }
+
+                const resData = await response.json();
+                githubFileSha = resData.content.sha; // 更新最新的檔案 SHA
+                localStorage.setItem("gh_file_sha", githubFileSha);
+                localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+
+                alert("成功將最新車牌與確認欄位同步至 GitHub！");
+            } catch (err) {
+                alert("推送失敗: " + err.message);
+            }
+        }
+
+        // 車牌搜尋比對 (入口管理介面)
+        function renderResults(keyword) {
+            const container = document.getElementById("result-container");
+            container.innerHTML = "";
+
+            if (mockDatabase.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">請先從上方載入或設定車牌資料</p>';
+                return;
+            }
+
+            if (!keyword) {
+                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">等待輸入車牌...</p>';
+                return;
+            }
+
+            // 將輸入進行正規化：轉大寫、全形橫線「－」或「一」轉成半形「-」，最後只允許英數字與半形減號「-」
+            let normalizedKeyword = keyword.toUpperCase()
+                .replace(/[－一]/g, "-") // 將全形減號或中文一字元轉為半形 -
+                .replace(/[^A-Z0-9-]/g, ""); // 只保留英文、數字與半形減號
+
+            // 計算用來進行模糊比對的純英數字長度（扣除減號）
+            const cleanLength = normalizedKeyword.replace(/-/g, "").length;
+            
+            if (cleanLength < 3) {
+                container.innerHTML = '<p class="text-center text-amber-400 text-xs py-8 font-semibold">⚠️ 請至少輸入 3 碼(英數字)進行比對</p>';
+                return;
+            }
+
+            const filtered = mockDatabase.filter(item => {
+                // 資料庫車牌正規化（大寫，且只保留英數減號）
+                const cleanPlate = (item["車牌"] || "").toUpperCase()
+                    .replace(/[－一]/g, "-")
+                    .replace(/[^A-Z0-9-]/g, "");
+                
+                return cleanPlate.includes(normalizedKeyword);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-rose-950/40 border border-rose-900/60 text-rose-200 p-5 rounded-2xl text-center fail-glow transition-all">
+                        <p class="font-black text-xl tracking-wider text-rose-400">⚠️ 未註冊車牌</p>
+                        <p class="text-xs mt-2 text-rose-300/80">請勿放行，或聯繫工地主任核發通行證</p>
+                    </div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const isTemp = item["類型"] !== "regular";
+                // 組合管理者確認資訊
+                const approvals = [];
+                if (item["管理者1"] === "OK") approvals.push("管理者1");
+                if (item["管理者2"] === "OK") approvals.push("管理者2");
+                if (item["管理者3"] === "OK") approvals.push("管理者3");
+                const approvalText = approvals.length > 0 ? `已確認 (${approvals.join(', ')})` : "待確認";
+
+                container.innerHTML += `
+                    <div class="p-4 rounded-2xl border ${isTemp ? 'bg-amber-950/30 border-amber-700/60 text-amber-200' : 'bg-emerald-950/30 border-emerald-800/60 text-emerald-200'} pass-glow shadow-md transition-all">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
+                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${isTemp ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}">
+                                ${isTemp ? item["備註"] : '准予通行'}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
+                            <div><span class="text-slate-500">單位:</span> ${item["單位別"] || '-'}</div>
+                            <div><span class="text-slate-500">姓名:</span> ${item["姓名"] || '-'}</div>
+                            <div><span class="text-slate-500">電話:</span> ${item["電話"] || '-'}</div>
+                            <div><span class="text-slate-500">審核:</span> <span class="${approvals.length > 0 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">${approvalText}</span></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // 開關登入 Modal
+        function toggleRole() {
+            if (currentRole === "guard") {
+                document.getElementById("login-modal").classList.remove("hidden");
+            } else {
+                logout();
+            }
+        }
+
+        function closeLoginModal() {
+            document.getElementById("login-modal").classList.add("hidden");
+        }
+
+        function submitLogin() {
+            const user = document.getElementById("login-user").value;
+            const pass = document.getElementById("login-pass").value;
+
+            if (pass === "1189") {
+                currentRole = user;
+                localStorage.setItem("current_role", user);
+                
+                // 畫面 UI 更新
+                const badge = document.getElementById("role-badge");
+                badge.innerText = `主任: ${user}`;
+                badge.className = "text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1 rounded-full font-bold";
+                
+                document.getElementById("logout-btn").classList.remove("hidden");
+                document.getElementById("toggle-role-btn").innerText = "切換至【入口管理介面】";
+                document.getElementById("search-section").classList.add("hidden");
+                document.getElementById("admin-section").classList.remove("hidden");
+                
+                closeLoginModal();
+                renderAdminDatabase();
+            } else {
+                alert("驗證密碼錯誤！");
+            }
+            document.getElementById("login-pass").value = "";
+        }
+
+        function logout() {
+            currentRole = "guard";
+            localStorage.removeItem("current_role");
+            
+            const badge = document.getElementById("role-badge");
+            badge.innerText = "入口管理";
+            badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
+            
+            document.getElementById("logout-btn").classList.add("hidden");
+            document.getElementById("toggle-role-btn").innerText = "切換至【管理者登入】";
+            document.getElementById("search-section").classList.remove("hidden");
+            document.getElementById("admin-section").classList.add("hidden");
+            
+            renderResults(document.getElementById("search-input").value);
+        }
+
+        // 新增車牌 (臨時/常駐)
+        function addNewLicense(remark) {
+            const plate = document.getElementById("temp-plate").value.trim().toUpperCase();
+            const unit = document.getElementById("temp-unit").value.trim();
+
+            if (!plate) { alert("請輸入車牌號碼"); return; }
+
+            const type = remark === '常駐車輛' ? 'regular' : 'temp';
+
+            mockDatabase.unshift({
+                "單位別": unit || "新增車輛",
+                "分項": "新增登記",
+                "車牌": plate,
+                "電話": "-",
+                "姓名": "主管登記",
+                "備註": remark,
+                "管理者1": "",
+                "管理者2": "",
+                "管理者3": "",
+                "類型": type
+            });
+
+            alert(`已成功登錄車牌 ${plate} (${remark})，請記得按上方儲存按鈕同步推送到 GitHub！`);
+            document.getElementById("temp-plate").value = "";
+            document.getElementById("temp-unit").value = "";
+            renderAdminDatabase();
+            updateSuggestions();
+        }
+
+        // 更新各欄位內容
+        function updateField(index, field, value) {
+            mockDatabase[index][field] = value;
+            localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+        }
+
+        // 切換管理者勾選確認 (OK / "")
+        function toggleAdminCheck(index, adminCol) {
+            if (currentRole === "guard") return;
+            
+            // 限制當前登入的管理者只能勾選屬於自己的欄位
+            if (currentRole !== adminCol) {
+                alert(`您目前登入為 ${currentRole}，無法勾選 ${adminCol} 的確認欄！`);
+                return;
+            }
+
+            const currentVal = mockDatabase[index][adminCol];
+            mockDatabase[index][adminCol] = currentVal === "OK" ? "" : "OK";
+            
+            localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+            renderAdminDatabase();
+        }
+
+        // 渲染後台資料庫與勾選欄
+        function renderAdminDatabase() {
+            const list = document.getElementById("database-list");
+            list.innerHTML = "";
+            document.getElementById("db-count").innerText = mockDatabase.length;
+            
+            mockDatabase.forEach((item, index) => {
+                const checked1 = item["管理者1"] === "OK";
+                const checked2 = item["管理者2"] === "OK";
+                const checked3 = item["管理者3"] === "OK";
+
+                list.innerHTML += `
+                    <div class="p-3 border border-slate-700/80 rounded-xl bg-slate-900/40 space-y-2">
+                        <div class="flex justify-between items-center font-bold text-slate-300">
+                            <span class="font-mono text-sm tracking-wider">${item["車牌"]}</span>
+                            <span class="text-slate-500 font-normal text-[10px]">#${index+1}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-0.5">姓名</label>
+                                <input type="text" value="${item["姓名"] || ''}" onchange="updateField(${index}, '姓名', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="姓名">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-slate-500 mb-0.5">電話</label>
+                                <input type="text" value="${item["電話"] || ''}" onchange="updateField(${index}, '電話', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="電話">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[9px] text-slate-500 mb-0.5">備註</label>
+                                <input type="text" value="${item["備註"] || ''}" onchange="updateField(${index}, '備註', this.value)" class="w-full p-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="備註">
+                            </div>
+                            
+                            <!-- 三位管理者審核核取方塊 -->
+                            <div class="col-span-2 border-t border-slate-700/40 pt-2 flex justify-between items-center">
+                                <span class="text-[10px] text-slate-400">核簽審查：</span>
+                                <div class="flex space-x-3 text-[10px]">
+                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者1')">
+                                        <input type="checkbox" ${checked1 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
+                                        <span class="${checked1 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管1</span>
+                                    </label>
+                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者2')">
+                                        <input type="checkbox" ${checked2 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
+                                        <span class="${checked2 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管2</span>
+                                    </label>
+                                    <label class="flex items-center space-x-1 cursor-pointer select-none" onclick="toggleAdminCheck(${index}, '管理者3')">
+                                        <input type="checkbox" ${checked3 ? 'checked' : ''} disabled class="rounded border-slate-600 bg-slate-850 text-indigo-500 focus:ring-0">
+                                        <span class="${checked3 ? 'text-indigo-400 font-bold' : 'text-slate-500'}">主管3</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+    </script>
+</body>
+                    </div>`;
+            });
+        }
+
+        document.getElementById('excel-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('file-name-display').innerText = file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                // 尋找指定「工地別」的分頁，若找不到則預設讀取第一個分頁
+                let sheetName = "工地別";
+                if(!workbook.Sheets[sheetName]) {
+                    sheetName = workbook.SheetNames[0];
+                    console.log("找不到名為 '工地別' 的分頁，改為讀取第一個分頁：" + sheetName);
+                }
+                
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                mockDatabase = jsonData.map(row => ({
+                    "單位別": row["單位別"] || "",
+                    "分項": row["分項"] || "",
+                    "車牌": row["車牌"] || "",
+                    "電話": row["電話"] || "",
+                    "姓名": row["姓名"] || "",
+                    "備註": row["備註"] || "",
+                    "類型": "regular"
+                }));
+                
+                alert("成功匯入 '工地別' 資料共 " + mockDatabase.length + " 筆！");
+                renderAdminDatabase();
+                renderResults(document.getElementById("search-input").value);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>
