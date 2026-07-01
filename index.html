@@ -210,7 +210,14 @@
             }
 
             document.getElementById("search-input").addEventListener("input", function(e) {
+                // 將輸入框內容即時轉為大寫
+                e.target.value = e.target.value.toUpperCase();
                 renderResults(e.target.value.trim());
+            });
+
+            // 工地主任手動新增欄位也同步強制大寫
+            document.getElementById("temp-plate").addEventListener("input", function(e) {
+                e.target.value = e.target.value.toUpperCase();
             });
         };
 
