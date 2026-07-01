@@ -507,13 +507,22 @@
             localStorage.removeItem("current_role");
             
             const badge = document.getElementById("role-badge");
-            badge.innerText = "入口管理";
-            badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
+            if (badge) {
+                badge.innerText = "入口管理";
+                badge.className = "text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-bold";
+            }
             
-            document.getElementById("logout-btn").classList.add("hidden");
-            document.getElementById("toggle-role-btn").innerText = "切換至【管理者登入】";
-            document.getElementById("search-section").classList.remove("hidden");
-            document.getElementById("admin-section").classList.add("hidden");
+            const logoutBtn = document.getElementById("logout-btn");
+            if (logoutBtn) logoutBtn.classList.add("hidden");
+
+            const toggleBtn = document.getElementById("toggle-role-btn");
+            if (toggleBtn) toggleBtn.innerText = "切換至【管理者登入】";
+
+            const searchSec = document.getElementById("search-section");
+            if (searchSec) searchSec.classList.remove("hidden");
+
+            const adminSec = document.getElementById("admin-section");
+            if (adminSec) adminSec.classList.add("hidden");
             
             const searchInput = document.getElementById("search-input");
             const searchVal = searchInput ? searchInput.value : "";
