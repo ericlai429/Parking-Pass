@@ -100,17 +100,6 @@
         <div class="flex-1 overflow-y-auto p-4 no-scrollbar flex flex-col justify-between space-y-4">
             
             <div id="app-body" class="space-y-4">
-                <!-- GitHub 連線與 Excel 載入設定 -->
-                <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
-                    <label class="block text-xs font-semibold text-slate-400 tracking-wider">🔗 GitHub 同步設定</label>
-                    <div class="space-y-2 text-xs">
-                        <input type="password" id="gh-token" placeholder="輸入 GitHub Personal Access Token (PAT)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <input type="text" id="gh-repo" placeholder="帳號/專案名稱 (例: user/parking-pass)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <input type="text" id="gh-path" placeholder="檔案路徑 (例: 永青三總停車清單.xlsx)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
-                        <button onclick="syncFromGithub()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold active:scale-95 transition-all">從 GitHub 載入車牌清單</button>
-                    </div>
-                </div>
-
                 <!-- 車牌查詢核心區塊 (入口管理) -->
                 <div id="search-section" class="space-y-4">
                     <div class="relative">
@@ -128,6 +117,16 @@
 
                 <!-- 工地主任後台 -->
                 <div id="admin-section" class="hidden space-y-4">
+                    <!-- GitHub 連線與 Excel 載入設定 (限管理者專用) -->
+                    <div class="glass-panel p-4 rounded-2xl shadow-lg space-y-3">
+                        <label class="block text-xs font-semibold text-slate-400 tracking-wider">🔗 GitHub 同步設定 (管理者專用)</label>
+                        <div class="space-y-2 text-xs">
+                            <input type="password" id="gh-token" placeholder="輸入 GitHub Personal Access Token (PAT)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="gh-repo" placeholder="帳號/專案名稱 (例: user/parking-pass)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <input type="text" id="gh-path" placeholder="檔案路徑 (例: 永青三總停車清單.xlsx)" class="w-full p-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <button onclick="syncFromGithub()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold active:scale-95 transition-all">從 GitHub 載入車牌清單</button>
+                        </div>
+                    </div>
                     <!-- 新增車牌區 -->
                     <div class="bg-amber-950/40 border border-amber-900/60 p-4 rounded-2xl shadow-lg space-y-3">
                         <h3 class="text-sm font-extrabold text-amber-300 tracking-wider flex items-center">
@@ -606,47 +605,53 @@
                     </div>`;
             });
         }
-    </script>
-</body>
-                    </div>`;
+        }
+
+        // 本機 Excel 檔案解析邏輯 (落後台手動備用)
+        function initExcelListener() {
+            const excelInput = document.getElementById('excel-file');
+            if (!excelInput) return;
+            excelInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    let sheetName = "工地別";
+                    if(!workbook.Sheets[sheetName]) {
+                        sheetName = workbook.SheetNames[0];
+                    }
+                    
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    mockDatabase = jsonData.map(row => ({
+                        "單位別": row["單位別"] || "",
+                        "分項": row["分項"] || "",
+                        "車牌": row["車牌"] || "",
+                        "電話": row["電話"] || "",
+                        "姓名": row["姓名"] || "",
+                        "備註": row["備註"] || "",
+                        "管理者1": row["管理者1"] || "",
+                        "管理者2": row["管理者2"] || "",
+                        "管理者3": row["管理者3"] || "",
+                        "類型": "regular"
+                    }));
+                    
+                    localStorage.setItem("parking_db", JSON.stringify(mockDatabase));
+                    alert("成功本機匯入資料共 " + mockDatabase.length + " 筆！");
+                    renderAdminDatabase();
+                    updateSuggestions();
+                    renderResults(document.getElementById("search-input").value);
+                };
+                reader.readAsArrayBuffer(file);
             });
         }
 
-        document.getElementById('excel-file').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            document.getElementById('file-name-display').innerText = file.name;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                
-                // 尋找指定「工地別」的分頁，若找不到則預設讀取第一個分頁
-                let sheetName = "工地別";
-                if(!workbook.Sheets[sheetName]) {
-                    sheetName = workbook.SheetNames[0];
-                    console.log("找不到名為 '工地別' 的分頁，改為讀取第一個分頁：" + sheetName);
-                }
-                
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
-                mockDatabase = jsonData.map(row => ({
-                    "單位別": row["單位別"] || "",
-                    "分項": row["分項"] || "",
-                    "車牌": row["車牌"] || "",
-                    "電話": row["電話"] || "",
-                    "姓名": row["姓名"] || "",
-                    "備註": row["備註"] || "",
-                    "類型": "regular"
-                }));
-                
-                alert("成功匯入 '工地別' 資料共 " + mockDatabase.length + " 筆！");
-                renderAdminDatabase();
-                renderResults(document.getElementById("search-input").value);
-            };
-            reader.readAsArrayBuffer(file);
-        });
+        // 綁定本機 Excel 上傳監聽器
+        window.addEventListener('DOMContentLoaded', initExcelListener);
     </script>
 </body>
 </html>
