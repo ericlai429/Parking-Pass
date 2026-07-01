@@ -100,20 +100,20 @@
 
                     <!-- 比對結果動態顯示 -->
                     <div id="result-container" class="space-y-3 min-h-[150px]">
-                        <p class="text-center text-slate-500 text-xs py-8">請輸入車牌號碼進行比對</p>
+                        <p class="text-center text-slate-500 text-[18px] py-8">請輸入車牌號碼進行比對</p>
                     </div>
 
                     <!-- 警衛提交新車牌申請 -->
                     <div class="bg-sky-950/40 border border-sky-900/60 p-4 rounded-2xl shadow-lg space-y-3">
-                        <h3 class="text-sm font-extrabold text-sky-300 tracking-wider flex items-center">
+                        <h3 class="text-[18px] font-extrabold text-sky-300 tracking-wider flex items-center">
                             <span class="mr-1.5">🚗</span> 提交新車牌申請
                         </h3>
                         <p class="text-sky-300 font-black text-center tracking-wider leading-snug py-2" style="font-size: 30px;">輸入新車牌後提交，待管理者核可即可放行</p>
-                        <div class="space-y-2.5 text-xs">
-                            <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 font-mono text-sm tracking-wider uppercase">
-                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-sm">
-                            <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-sm">
-                            <button onclick="guardSubmitPlate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all">📤 提交申請（待管理者核可）</button>
+                        <div class="space-y-2.5 text-[18px]">
+                            <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 font-mono text-[18px] tracking-wider uppercase">
+                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-[18px]">
+                            <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-[18px]">
+                            <button onclick="guardSubmitPlate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all text-[18px]">📤 提交申請（待管理者核可）</button>
                         </div>
                         <div id="guard-pending-list" class="space-y-2 mt-2"></div>
                     </div>
@@ -450,15 +450,15 @@
             const items = pendingPlates.filter(p => p.date === today);
             if (items.length === 0) { c.innerHTML = ""; return; }
 
-            c.innerHTML = `<p class="text-[10px] text-sky-400/70 font-semibold mt-1">📋 今日已提交 ${items.length} 筆：</p>`;
+            c.innerHTML = `<p class="text-[18px] text-sky-400/70 font-bold mt-1">📋 今日已提交 ${items.length} 筆：</p>`;
             items.forEach(p => {
                 const badge = p.status === "pending"
-                    ? `<span class="text-amber-400 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">⏳ 待核可</span>`
+                    ? `<span class="text-amber-400 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full text-[16px]">⏳ 待核可</span>`
                     : p.status === "approved"
-                    ? `<span class="text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">✅ ${p.approvedBy}</span>`
-                    : `<span class="text-rose-400 bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 rounded-full">❌ 駁回</span>`;
+                    ? `<span class="text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-full text-[16px]">✅ ${p.approvedBy}</span>`
+                    : `<span class="text-rose-400 bg-rose-500/20 border border-rose-500/30 px-3 py-1 rounded-full text-[16px]">❌ 駁回</span>`;
                 const phStr = p.phone && p.phone !== "-" ? ` | 📞 ${p.phone}` : "";
-                c.innerHTML += `<div class="flex justify-between items-center p-2 bg-slate-900/40 border border-slate-700/40 rounded-lg text-[11px]">
+                c.innerHTML += `<div class="flex justify-between items-center p-3 bg-slate-900/40 border border-slate-700/40 rounded-lg text-[18px]">
                     <span class="font-mono font-bold text-white tracking-wider">${p.plate}</span>
                     <span class="text-slate-400">${p.unit}${phStr}</span>${badge}</div>`;
             });
@@ -831,17 +831,17 @@
             const allData = getMergedDatabase();
 
             if (allData.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">請先載入車牌資料</p>';
+                container.innerHTML = '<p class="text-center text-slate-500 text-[18px] py-8">請先載入車牌資料</p>';
                 return;
             }
             if (!keyword) {
-                container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">等待輸入車牌...</p>';
+                container.innerHTML = '<p class="text-center text-slate-500 text-[18px] py-8">等待輸入車牌...</p>';
                 return;
             }
 
             let nk = normalizePlate(keyword);
             if (nk.replace(/-/g, "").length < 3) {
-                container.innerHTML = '<p class="text-center text-amber-400 text-xs py-8 font-semibold">⚠️ 請至少輸入 3 碼</p>';
+                container.innerHTML = '<p class="text-center text-amber-400 text-[18px] py-8 font-semibold">⚠️ 請至少輸入 3 碼</p>';
                 return;
             }
 
@@ -858,8 +858,8 @@
 
             if (filtered.length === 0 && pendingMatches.length === 0) {
                 container.innerHTML = `<div class="bg-rose-950/40 border border-rose-900/60 text-rose-200 p-5 rounded-2xl text-center fail-glow">
-                    <p class="font-black text-xl tracking-wider text-rose-400">⚠️ 未註冊車牌</p>
-                    <p class="text-xs mt-2 text-rose-300/80">請勿放行，或由下方提交申請</p></div>`;
+                    <p class="font-black text-2xl tracking-wider text-rose-400">⚠️ 未註冊車牌</p>
+                    <p class="text-[18px] mt-2 text-rose-300/80">請勿放行，或由下方提交申請</p></div>`;
                 return;
             }
 
@@ -872,9 +872,9 @@
                 container.innerHTML += `<div class="p-4 rounded-2xl border bg-emerald-950/30 border-emerald-800/60 text-emerald-200 pass-glow shadow-md">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
-                        <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ 准予通行</span>
+                        <span class="text-[18px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ 准予通行</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
+                    <div class="grid grid-cols-1 gap-y-1.5 text-[18px] text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
                         <div><span class="text-slate-500">單位:</span> ${item["單位別"]||'-'}</div>
                         <div><span class="text-slate-500">姓名:</span> ${item["姓名"]||'-'}</div>
                         <div><span class="text-slate-500">電話:</span> ${item["電話"]||'-'}</div>
@@ -886,9 +886,9 @@
                 container.innerHTML += `<div class="p-4 rounded-2xl border bg-amber-950/30 border-amber-700/60 text-amber-200 pending-glow shadow-md">
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${p.plate}</span>
-                        <span class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⏳ 待核可</span>
+                        <span class="text-[18px] px-2.5 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⏳ 待核可</span>
                     </div>
-                    <div class="text-xs text-amber-300/70 mt-2">
+                    <div class="text-[18px] text-amber-300/70 mt-2">
                         <p class="text-rose-400 font-bold">⚠️ 尚未核可，請勿放行</p>
                     </div></div>`;
             });
