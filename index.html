@@ -116,7 +116,10 @@
                         <p class="text-sky-300 font-bold text-center tracking-wider leading-snug py-1 text-[18px]">輸入新車牌後提交，待管理者核可即可放行</p>
                         <div class="space-y-2.5 text-[18px]">
                             <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 font-mono text-[18px] tracking-wider uppercase">
-                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 text-[18px]">
+                            <div class="relative">
+                                <input type="text" id="guard-unit" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 text-[18px]" autocomplete="off">
+                                <div id="guard-unit-dropdown" class="absolute left-0 right-0 mt-1 max-h-[180px] overflow-y-auto bg-slate-900/95 border border-sky-900/60 rounded-xl shadow-2xl z-40 hidden custom-scrollbar divide-y divide-slate-800/60"></div>
+                            </div>
                             <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 text-[18px]">
                             <button onclick="guardSubmitPlate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all text-[18px]">📤 提交申請（待管理者核可）</button>
                         </div>
@@ -168,8 +171,10 @@
                         </h3>
                         <div class="space-y-2.5 text-xs">
                             <input type="text" id="temp-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 font-mono text-sm tracking-wider uppercase">
-                            <input type="text" id="temp-unit" list="unit-suggestions" placeholder="單位別 / 姓名" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 text-sm">
-                            <datalist id="unit-suggestions"></datalist>
+                            <div class="relative">
+                                <input type="text" id="temp-unit" placeholder="單位別 / 姓名" class="w-full p-3 bg-slate-900/60 border border-amber-900/40 rounded-xl text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-500 text-sm" autocomplete="off">
+                                <div id="temp-unit-dropdown" class="absolute left-0 right-0 mt-1 max-h-[150px] overflow-y-auto bg-slate-900/95 border border-amber-900/60 rounded-xl shadow-2xl z-40 hidden custom-scrollbar divide-y divide-slate-800/60"></div>
+                            </div>
                             <div class="grid grid-cols-3 gap-2 pt-1">
                                 <button onclick="adminAddLicense('臨時(當日)')" class="bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當日</button>
                                 <button onclick="adminAddLicense('臨時(當周)')" class="bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold active:scale-95 transition-all text-xs">當周</button>
@@ -358,6 +363,10 @@
             // 每 10 秒檢查一次雲端資料庫是否有新變更
             checkGitHubMtime();
             checkUpdateIntervalId = setInterval(checkGitHubMtime, 10000);
+
+            // 綁定智能下拉選單
+            setupSmartDropdown("guard-unit", "guard-unit-dropdown");
+            setupSmartDropdown("temp-unit", "temp-unit-dropdown");
         };
 
         function renderAll() {
@@ -1118,15 +1127,73 @@
         }
 
         // ============================================================
-        //  通用功能
+        //  智能滾動下拉選單 (Roll List Autocomplete)
         // ============================================================
         function updateSuggestions() {
-            const dl = document.getElementById("unit-suggestions");
-            if (!dl) return;
-            const merged = getMergedDatabase();
-            const units = [...new Set(merged.map(i => (i["單位別"]||"").trim()).filter(u => u.length > 0))];
-            dl.innerHTML = "";
-            units.forEach(u => { const o = document.createElement("option"); o.value = u; dl.appendChild(o); });
+            // 已由 setupSmartDropdown 接管，保留空函式防呆
+        }
+
+        function setupSmartDropdown(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            if (!input || !dropdown) return;
+
+            // 取得所有資料庫中的唯一非空單位名稱
+            function getUnits() {
+                const merged = getMergedDatabase();
+                return [...new Set(merged.map(i => (i["單位別"]||"").trim()).filter(u => u.length > 0))];
+            }
+
+            // 渲染下拉內容
+            function renderDropdown(filterText = "") {
+                const units = getUnits();
+                const matched = units.filter(u => u.toUpperCase().includes(filterText.toUpperCase()));
+                
+                if (matched.length === 0) {
+                    dropdown.innerHTML = `<div class="p-3 text-slate-500 text-xs text-center">查無匹配單位</div>`;
+                    return;
+                }
+
+                // 產生選項，樣式仿照 777 開獎滾輪/高品質滑動選單
+                dropdown.innerHTML = matched.map(u => `
+                    <div class="dropdown-item px-4 py-3 text-slate-200 hover:text-white hover:bg-emerald-500/20 active:bg-emerald-500/40 cursor-pointer font-bold transition-all flex items-center space-x-2 select-none" style="font-size: 16px;">
+                        <span>🏢</span>
+                        <span>${u}</span>
+                    </div>
+                `).join("");
+
+                // 綁定點擊事件
+                Array.from(dropdown.children).forEach((el, index) => {
+                    if (el.classList.contains("dropdown-item")) {
+                        el.addEventListener("mousedown", (e) => {
+                            e.preventDefault(); // 防止 input 失去焦點
+                            input.value = matched[index];
+                            hideDropdown();
+                        });
+                    }
+                });
+            }
+
+            function showDropdown() {
+                renderDropdown(input.value.trim());
+                dropdown.classList.remove("hidden");
+                dropdown.classList.add("block");
+            }
+
+            function hideDropdown() {
+                dropdown.classList.add("hidden");
+                dropdown.classList.remove("block");
+            }
+
+            // 監聽事件
+            input.addEventListener("focus", showDropdown);
+            input.addEventListener("blur", () => {
+                // 延遲關閉，讓 mousedown 事件能夠順利觸發
+                setTimeout(hideDropdown, 200);
+            });
+            input.addEventListener("input", (e) => {
+                renderDropdown(e.target.value.trim());
+            });
         }
 
         function updateField(index, field, value) {
