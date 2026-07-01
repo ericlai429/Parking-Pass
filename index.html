@@ -95,12 +95,12 @@
                 <div id="search-section" class="space-y-4">
                     <!-- 車牌搜尋框 -->
                     <div class="relative">
-                        <input type="text" id="search-input" placeholder="👉 請輸入車牌最後 3 碼或 4 碼 👈" class="w-full px-4 py-8 bg-slate-900/80 border-2 border-emerald-500/50 rounded-2xl focus:outline-none focus:border-emerald-400 font-mono text-3xl text-center font-black tracking-widest uppercase text-white placeholder-slate-600 shadow-2xl transition-all duration-200 focus:ring-4 focus:ring-emerald-500/20">
+                        <input type="text" id="search-input" placeholder="👉 請輸入車牌最後 3 碼或 4 碼 👈" class="w-full px-4 py-8 bg-slate-900/80 border-2 border-emerald-500/50 rounded-2xl focus:outline-none focus:border-emerald-400 font-mono text-3xl text-center font-black tracking-widest uppercase text-white placeholder-slate-400 shadow-2xl transition-all duration-200 focus:ring-4 focus:ring-emerald-500/20">
                     </div>
 
                     <!-- 比對結果動態顯示 -->
                     <div id="result-container" class="space-y-3 min-h-[150px]">
-                        <p class="text-center text-slate-500 text-[18px] py-8">請輸入車牌號碼進行比對</p>
+                        <p class="text-center text-slate-200 text-[18px] py-8 font-semibold">請輸入車牌號碼進行比對</p>
                     </div>
 
                     <!-- 警衛提交新車牌申請 -->
@@ -110,9 +110,9 @@
                         </h3>
                         <p class="text-sky-300 font-bold text-center tracking-wider leading-snug py-1 text-[18px]">輸入新車牌後提交，待管理者核可即可放行</p>
                         <div class="space-y-2.5 text-[18px]">
-                            <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 font-mono text-[18px] tracking-wider uppercase">
-                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-[18px]">
-                            <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-sky-100 placeholder-sky-700/60 focus:outline-none focus:border-sky-500 text-[18px]">
+                            <input type="text" id="guard-plate" placeholder="輸入車牌 (例: ABC-1234)" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 font-mono text-[18px] tracking-wider uppercase">
+                            <input type="text" id="guard-unit" list="unit-suggestions" placeholder="單位別 / 駕駛人姓名" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 text-[18px]">
+                            <input type="text" id="guard-phone" placeholder="電話號碼" class="w-full p-3 bg-slate-900/60 border border-sky-900/40 rounded-xl text-white placeholder-sky-300/80 focus:outline-none focus:border-sky-500 text-[18px]">
                             <button onclick="guardSubmitPlate()" class="w-full bg-sky-600 hover:bg-sky-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-all text-[18px]">📤 提交申請（待管理者核可）</button>
                         </div>
                         <div id="guard-pending-list" class="space-y-2 mt-2"></div>
@@ -189,12 +189,12 @@
 
             <!-- 底部切換與版本區 -->
             <div class="pt-4 shrink-0 space-y-2">
-                <div class="flex justify-between items-center text-[10px] text-slate-500 px-1 select-none">
+                <div class="flex justify-between items-center text-[11px] text-slate-300 px-1 select-none font-bold">
                     <div class="flex items-center space-x-1.5 text-[12px] text-white font-bold">
                         <span id="version-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span id="db-version-text" class="font-mono">Ver 2026/--/--/--:--</span>
                     </div>
-                    <span class="opacity-60">永青三總專用</span>
+                    <span class="text-slate-200">永青三總專用</span>
                 </div>
                 <button id="toggle-role-btn" onclick="toggleRole()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm py-3.5 rounded-2xl font-bold tracking-wider shadow-lg border border-slate-700 active:scale-98 transition-all duration-200">
                     切換至【管理者登入】
@@ -460,7 +460,7 @@
                 const phStr = p.phone && p.phone !== "-" ? ` | 📞 ${p.phone}` : "";
                 c.innerHTML += `<div class="flex justify-between items-center p-3 bg-slate-900/40 border border-slate-700/40 rounded-lg text-[18px]">
                     <span class="font-mono font-bold text-white tracking-wider">${p.plate}</span>
-                    <span class="text-slate-400">${p.unit}${phStr}</span>${badge}</div>`;
+                    <span class="text-slate-200">${p.unit}${phStr}</span>${badge}</div>`;
             });
         }
 
@@ -831,17 +831,17 @@
             const allData = getMergedDatabase();
 
             if (allData.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-500 text-[18px] py-8">請先載入車牌資料</p>';
+                container.innerHTML = '<p class="text-center text-slate-200 text-[18px] py-8 font-semibold">請先載入車牌資料</p>';
                 return;
             }
             if (!keyword) {
-                container.innerHTML = '<p class="text-center text-slate-500 text-[18px] py-8">等待輸入車牌...</p>';
+                container.innerHTML = '<p class="text-center text-slate-200 text-[18px] py-8 font-semibold">等待輸入車牌...</p>';
                 return;
             }
 
             let nk = normalizePlate(keyword);
             if (nk.replace(/-/g, "").length < 3) {
-                container.innerHTML = '<p class="text-center text-amber-400 text-[18px] py-8 font-semibold">⚠️ 請至少輸入 3 碼</p>';
+                container.innerHTML = '<p class="text-center text-amber-400 text-[18px] py-8 font-extrabold">⚠️ 請至少輸入 3 碼</p>';
                 return;
             }
 
@@ -874,11 +874,11 @@
                         <span class="text-2xl font-mono font-extrabold tracking-wider text-white">${item["車牌"]}</span>
                         <span class="text-[18px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ 准予通行</span>
                     </div>
-                    <div class="grid grid-cols-1 gap-y-1.5 text-[18px] text-slate-400 mt-3 border-t pt-3 border-dashed border-slate-700/60">
-                        <div><span class="text-slate-500">單位:</span> ${item["單位別"]||'-'}</div>
-                        <div><span class="text-slate-500">姓名:</span> ${item["姓名"]||'-'}</div>
-                        <div><span class="text-slate-500">電話:</span> ${item["電話"]||'-'}</div>
-                        <div><span class="text-slate-500">審核:</span> <span class="${ap.length>0?'text-indigo-400 font-bold':'text-slate-500'}">${apText}</span></div>
+                    <div class="grid grid-cols-1 gap-y-1.5 text-[18px] text-slate-200 mt-3 border-t pt-3 border-dashed border-slate-700/60">
+                        <div><span class="text-slate-400 font-medium">單位:</span> ${item["單位別"]||'-'}</div>
+                        <div><span class="text-slate-400 font-medium">姓名:</span> ${item["姓名"]||'-'}</div>
+                        <div><span class="text-slate-400 font-medium">電話:</span> ${item["電話"]||'-'}</div>
+                        <div><span class="text-slate-400 font-medium">審核:</span> <span class="${ap.length>0?'text-indigo-400 font-bold':'text-slate-400'}">${apText}</span></div>
                     </div></div>`;
             });
 
